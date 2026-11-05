@@ -5,3 +5,5 @@
 - PR은 리뷰어 1명 이상 승인 후 **Squash merge**로 합칩니다.
 - 커밋 메시지: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:` 접두어 사용 (예: `feat: 주행 속도 그래프 추가`)
 - 비밀정보(키스토어, `local.properties`, API 키 등)는 절대 커밋하지 않습니다.
+
+- AI 도구로 작업할 때는 [AGENTS.md](AGENTS.md) 규칙을 따릅니다.
