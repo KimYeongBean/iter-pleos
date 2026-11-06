@@ -7,3 +7,4 @@
 - 비밀정보(키스토어, `local.properties`, API 키 등)는 절대 커밋하지 않습니다.
 
 - AI 도구로 작업할 때는 [AGENTS.md](AGENTS.md) 규칙을 따릅니다.
+- 작업 흐름·완료 기준은 [docs/workflow.md](docs/workflow.md), 모듈 소유자는 [docs/ownership.md](docs/ownership.md), 용어는 [GLOSSARY.md](GLOSSARY.md)를 봅니다.
