@@ -15,3 +15,4 @@ Iter는 Pleos Connect SDK를 활용한 Android Automotive OS(AAOS) 앱입니다.
 
 ## 협업 방식
 브랜치·커밋·PR 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
+용어는 [GLOSSARY.md](GLOSSARY.md), 모듈 경계·소유자·작업 흐름은 [docs/](docs/workflow.md)를 참고하세요.
