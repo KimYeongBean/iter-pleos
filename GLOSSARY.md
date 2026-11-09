@@ -12,7 +12,7 @@
 | 하루 기록 | 같은 날짜의 주행 세션을 모은 것. 잔디 칸·하루 그림의 단위 | `RecordStore.dayRecord(date)` (주행 세션 목록, 별도 타입 없음) | 자정을 넘는 주행 세션은 시작한 날짜에 속함 |
 | 샘플 | 주행 세션 안에서 일정 간격으로 찍은 그 순간의 차량 신호 값 묶음 | `Sample` | 항목은 [docs/interfaces.md](docs/interfaces.md) |
 | 기록 저장소 | 주행 세션을 기기 안에 저장하고 날짜별로 꺼내는 곳. 실제 기록과 가짜 주행 데이터를 같은 방식으로 다룸 | `RecordStore` | `:vehicle` 출력. [ADR 0001](docs/adr/0001-fake-drive-data-via-record-store.md) |
-| 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 피할 말: 더미, 목업 데이터 |
+| 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 세 종류: 정상 `normal` / 급가속·급제동 `harsh` / 신호 일부 누락 `missingSignals`, 날짜마다 한 종류씩 섞은 묶음 `allKinds`. 피할 말: 더미, 목업 데이터 |
 | 맵 그래프 | 주행 경로를 지도 배경 없이 레이싱 트랙처럼 선으로 그린 화면 요소 | TBD | 바탕은 어두운/밝은 중 사용자가 고름. 상세 그래프는 별개 화면 |
 | 추정 경로 | 위치 없이 속도와 조향각으로 계산한 주행 경로 | TBD | 최종 기획의 맵 그래프 경로. 첫 제출은 위치가 있을 때만 그림 ([ADR 0002](docs/adr/0002-map-graph-estimated-route.md)) |
 | 속도색 | 속도에 비례해 연속으로 진해지는 한 가지 색. 경로·그래프에 입힘 | TBD | 구간으로 나누지 않음. 기본 색은 사용자가 고름. 가장 진한 색이 되는 속도는 날짜와 상관없이 고정 |
