@@ -15,3 +15,7 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### Project docs
+
+Overall planning and development docs live in the Notion **Iter** page. Read them with the Notion MCP tools before planning or specifying work. See `docs/agents/project-docs.md`.
