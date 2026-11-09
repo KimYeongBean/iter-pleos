@@ -11,7 +11,7 @@
 | 주행 세션 | 한 번 운전을 시작해서 끝낼 때까지의 주행 구간. 하루에 여러 개 생길 수 있음 | `DriveSession` (출처: `DriveSessionSource`) | 기어 D에서 시작, P로 정차한 채 일정 시간이 지나면 끝. 신호가 없으면 수동 버튼. 피할 말: 하루 주행 세션 |
 | 하루 기록 | 같은 날짜의 주행 세션을 모은 것. 잔디 칸·하루 그림의 단위 | `RecordStore.dayRecord(date)` (주행 세션 목록, 별도 타입 없음) | 자정을 넘는 주행 세션은 시작한 날짜에 속함 |
 | 샘플 | 주행 세션 안에서 일정 간격으로 찍은 그 순간의 차량 신호 값 묶음 | `Sample` | 항목은 [docs/interfaces.md](docs/interfaces.md) |
-| 차량 신호 흐름 | `:vehicle` 안에서 1초마다 그 순간의 샘플과 기어를 내보내는 입구. 실제는 Pleos SDK 어댑터, 테스트는 가짜 신호 순서 | `Flow<VehicleSignals>` (주행 세션 기록: `DriveSessionRecorder`) | `:vehicle` 내부. 시각은 샘플 시각을 따름. 기어 D에서 시작, P·속도 0이 60초 이어지면 끝 |
+| 차량 신호 흐름 | `:vehicle` 안에서 1초마다 그 순간의 샘플과 기어를 내보내는 입구. 실제는 Pleos SDK 어댑터, 테스트는 가짜 신호 순서 | `Flow<VehicleSignals>` (주행 세션 기록: `DriveSessionRecorder`) | `:vehicle` 내부. 항목 하나(`VehicleSignals`)가 한 순간의 값. 시각은 샘플 시각을 따름 |
 | 기록 저장소 | 주행 세션을 기기 안에 저장하고 날짜별로 꺼내는 곳. 실제 기록과 가짜 주행 데이터를 같은 방식으로 다룸 | `RecordStore` | `:vehicle` 출력. [ADR 0001](docs/adr/0001-fake-drive-data-via-record-store.md) |
 | 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 세 종류: 정상 `normal` / 급가속·급제동 `harsh` / 신호 일부 누락 `missingSignals`, 날짜마다 한 종류씩 섞은 묶음 `allKinds`. 피할 말: 더미, 목업 데이터 |
 | 맵 그래프 | 주행 경로를 지도 배경 없이 레이싱 트랙처럼 선으로 그린 화면 요소 | TBD | 바탕은 어두운/밝은 중 사용자가 고름. 상세 그래프는 별개 화면 |

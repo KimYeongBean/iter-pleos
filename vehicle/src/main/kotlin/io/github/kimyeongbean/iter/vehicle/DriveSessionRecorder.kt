@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Parked at 0 km/h this long ends a drive session (docs/interfaces.md common constant, 제안값). */
-const val DRIVE_SESSION_END_WAIT_MS: Long = 60_000L
+internal const val DRIVE_SESSION_END_WAIT_MS: Long = 60_000L
 
 /** An in-progress drive session is saved every this many new samples, so a crash loses little. */
 internal const val IN_PROGRESS_SAVE_EVERY_SAMPLES = 10
@@ -25,15 +27,18 @@ class DriveSessionRecorder(
 ) {
     private val inProgressState = MutableStateFlow(false)
 
+    /** Only one [record] at a time: a second one would close the session the first is writing. */
+    private val recordLock = Mutex()
+
     /** True while a drive session is being recorded (for the "기록 중" display). */
     val inProgress: StateFlow<Boolean> = inProgressState.asStateFlow()
 
     /**
      * First closes drive sessions left unfinished by an earlier run (end = last saved sample), then
-     * records from [signals] until the flow ends or the caller is cancelled. Run one at a time.
+     * records from [signals] until the flow ends or the caller is cancelled. Calls run one at a time.
      * If [signals] ends mid-drive, the samples so far are saved and the session stays unfinished.
      */
-    suspend fun record(signals: Flow<VehicleSignals>) {
+    internal suspend fun record(signals: Flow<VehicleSignals>) = recordLock.withLock {
         store.closeUnfinishedSessions()
         var current: Recording? = null
         try {
@@ -41,14 +46,15 @@ class DriveSessionRecorder(
                 val recording = current
                 if (recording == null) {
                     if (signal.gear == Gear.DRIVE) {
-                        current = Recording(signal.sample)
+                        // Save the first sample at once, so even a very short run leaves the session.
+                        current = Recording(signal.sample).also { it.saveNewSamples() }
                         inProgressState.value = true
                     }
                     return@collect
                 }
-                val stoppedSinceMs = recording.add(signal)
-                if (stoppedSinceMs != null && signal.sample.timeEpochMs - stoppedSinceMs >= DRIVE_SESSION_END_WAIT_MS) {
-                    store.save(recording.finishedAt(stoppedSinceMs))
+                val endEpochMs = recording.add(signal)
+                if (endEpochMs != null) {
+                    store.save(recording.finishedAt(endEpochMs))
                     current = null
                     inProgressState.value = false
                 } else if (recording.unsavedCount >= IN_PROGRESS_SAVE_EVERY_SAMPLES) {
@@ -72,12 +78,16 @@ class DriveSessionRecorder(
 
         val unsavedCount get() = samples.size - savedCount
 
-        /** Adds [signal]'s sample. Returns when the current stop (P at 0 km/h) began, or null if moving. */
+        /**
+         * Adds [signal]'s sample. Returns the session's end time (when the stop began) once the
+         * gear has been P at 0 km/h for [DRIVE_SESSION_END_WAIT_MS], otherwise null.
+         */
         fun add(signal: VehicleSignals): Long? {
             samples += signal.sample
             val stopped = signal.gear == Gear.PARK && signal.sample.speedKmh <= 0.0
-            stoppedSinceMs = if (stopped) stoppedSinceMs ?: signal.sample.timeEpochMs else null
-            return stoppedSinceMs
+            val since = if (stopped) stoppedSinceMs ?: signal.sample.timeEpochMs else null
+            stoppedSinceMs = since
+            return since?.takeIf { signal.sample.timeEpochMs - it >= DRIVE_SESSION_END_WAIT_MS }
         }
 
         suspend fun saveNewSamples() {

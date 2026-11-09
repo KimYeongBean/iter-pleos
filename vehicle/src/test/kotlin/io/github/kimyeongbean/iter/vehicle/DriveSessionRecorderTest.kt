@@ -90,30 +90,31 @@ class DriveSessionRecorderTest {
     private fun expectedSession(
         played: List<VehicleSignals>,
         stopStartEpochMs: Long,
-    ) = DriveSession(
-        startEpochMs = played.first { it.gear == Gear.DRIVE }.sample.timeEpochMs,
-        endEpochMs = stopStartEpochMs,
-        source = DriveSessionSource.VEHICLE,
-        samples =
-        played
-            .map { it.sample }
-            .dropWhile { it.timeEpochMs < played.first { s -> s.gear == Gear.DRIVE }.sample.timeEpochMs }
-            .filter { it.timeEpochMs <= stopStartEpochMs },
-    )
+    ): DriveSession {
+        val driveStartEpochMs = played.first { it.gear == Gear.DRIVE }.sample.timeEpochMs
+        return DriveSession(
+            startEpochMs = driveStartEpochMs,
+            endEpochMs = stopStartEpochMs,
+            source = DriveSessionSource.VEHICLE,
+            samples = played.map { it.sample }.filter { it.timeEpochMs in driveStartEpochMs..stopStartEpochMs },
+        )
+    }
 
     @Test
     fun `drive starts on gear D and ends after parked at 0 kmh for the end wait, ending at the stop start`() = runBlocking {
         val store = openStore()
         val start = at(nov9, 8)
-        val played = signals(start, parked(5), drive(100), parked(endWaitS + 1))
+        val parkedBeforeS = 5
+        val driveS = 100
+        val played = signals(start, parked(parkedBeforeS), drive(driveS), parked(endWaitS + 1))
 
         DriveSessionRecorder(store).record(played.asFlow())
 
-        val stopStart = start + 105 * SAMPLE_INTERVAL_MS
+        val stopStart = start + (parkedBeforeS + driveS) * SAMPLE_INTERVAL_MS
         val sessions = store.dayRecord(nov9)
         assertEquals(listOf(expectedSession(played, stopStart)), sessions)
         // One sample per second from D to the stop start, both ends included.
-        assertEquals(101, sessions.single().samples.size)
+        assertEquals(driveS + 1, sessions.single().samples.size)
     }
 
     @Test
@@ -213,7 +214,8 @@ class DriveSessionRecorderTest {
             )
         }
 
-        val savedCount = IN_PROGRESS_SAVE_EVERY_SAMPLES * 2
+        // The first sample is saved at gear D, then every IN_PROGRESS_SAVE_EVERY_SAMPLES new ones.
+        val savedCount = 1 + IN_PROGRESS_SAVE_EVERY_SAMPLES * 2
         withTimeout(10_000) {
             while (store.dayRecord(nov9).singleOrNull()?.samples?.size != savedCount) delay(20)
         }

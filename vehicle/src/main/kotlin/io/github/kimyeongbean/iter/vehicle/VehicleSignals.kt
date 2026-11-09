@@ -8,13 +8,13 @@ import io.github.kimyeongbean.iter.model.Sample
  * (Pleos SDK in the app, a fake sequence in tests) keeps the latest signal values and emits them.
  * [gear] is null when the gear signal is not available.
  */
-data class VehicleSignals(
+internal data class VehicleSignals(
     val sample: Sample,
     val gear: Gear?,
 )
 
 /** Gear selector position (GLOSSARY: 기어). */
-enum class Gear {
+internal enum class Gear {
     PARK,
     REVERSE,
     NEUTRAL,
