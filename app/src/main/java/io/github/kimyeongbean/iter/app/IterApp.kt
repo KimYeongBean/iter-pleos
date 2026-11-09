@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -124,9 +125,16 @@ internal fun IterApp(
                 Screen.DAY -> {
                     val date = openDate ?: return@AnimatedContent
                     LaunchedEffect(loadDayArt, date) { loadDayArt(date) }
-                    DayArtScreen(
+                    // Computed before drawing, so the draw-in only draws. Keeps the previous
+                    // route while recomputing after records or colours change.
+                    val route by produceState<MapRoute?>(null, date, recordsVersion, speedColorBaseArgb) {
+                        val dayRecord = recordStore.dayRecord(date)
+                        value = withContext(Dispatchers.Default) { mapRoute(dayRecord, speedColorBaseArgb) }
+                    }
+                    DayScreen(
                         date = date,
-                        data = dayArts[date],
+                        dayArt = dayArts[date],
+                        route = route,
                         background = background,
                         playDrawIn = date !in drawnInDates && !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
