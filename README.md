@@ -1,6 +1,6 @@
 # Iter
 
-Iter는 Pleos Connect SDK를 활용한 Android Automotive OS(AAOS) 앱입니다. 하루 동안의 주행 데이터(속도, 브레이크, 방향지시등, 와이퍼, 전조등, 경로)를 기록해 그래프 아트와 레이싱 스타일 맵으로 보여줍니다.
+Iter는 Pleos Vehicle SDK를 활용한 Android Automotive OS(AAOS) 앱입니다. 하루 동안의 주행 데이터(속도, 브레이크, 방향지시등, 와이퍼, 전조등, 경로)를 기록해 그래프 아트와 레이싱 스타일 맵으로 보여줍니다.
 
 ## 공모전 정보
 현대자동차 Pleos 앱 개발 공모전(대학생 부문) 출품작입니다.
