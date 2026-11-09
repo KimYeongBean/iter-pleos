@@ -16,7 +16,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                 Surface {
-                    IterApp(recordStore = app.recordStore, appScope = app.appScope, showDebugMenu = BuildConfig.DEBUG)
+                    IterApp(
+                        recordStore = app.recordStore,
+                        speedColorSettingsStore = app.speedColorSettingsStore,
+                        appScope = app.appScope,
+                        showDebugMenu = BuildConfig.DEBUG,
+                    )
                 }
             }
         }
