@@ -1,4 +1,7 @@
 [versions]
+# Shared Android SDK levels (minSdk 28: docs/interfaces.md common constant)
+androidMinSdk = "28"
+androidCompileSdk = "35"
 agp = "8.8.2"
 kotlin = "2.1.0"
 coreKtx = "1.15.0"

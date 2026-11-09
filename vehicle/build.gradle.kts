@@ -5,23 +5,25 @@ plugins {
 
 android {
     namespace = "io.github.kimyeongbean.iter.vehicle"
-    compileSdk = 35
+    compileSdk = libs.versions.androidCompileSdk.get().toInt()
 
     defaultConfig {
-        minSdk = 28
+        minSdk = libs.versions.androidMinSdk.get().toInt()
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+}
+
+kotlin {
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
 dependencies {
-    implementation(project(":model"))
+    // Record store API exposes :model types to consumers.
+    api(project(":model"))
     implementation(libs.pleos.vehicle)
     testImplementation(libs.junit)
 }
