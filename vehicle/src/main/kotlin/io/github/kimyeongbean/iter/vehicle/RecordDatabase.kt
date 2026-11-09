@@ -88,6 +88,35 @@ internal abstract class RecordDao {
         insertSamples(samples.map { it.copy(sessionId = id) })
     }
 
+    @Query("SELECT id FROM drive_session WHERE startEpochMs = :startEpochMs AND source = :source")
+    abstract suspend fun sessionId(
+        startEpochMs: Long,
+        source: DriveSessionSource,
+    ): Long?
+
+    /** Adds [samples] to the session with the same start time and source, creating it if needed. */
+    @Transaction
+    open suspend fun appendSamples(
+        session: DriveSessionEntity,
+        samples: List<SampleEntity>,
+    ) {
+        val id = sessionId(session.startEpochMs, session.source) ?: insertSession(session)
+        insertSamples(samples.map { it.copy(sessionId = id) })
+    }
+
+    /** Ends every unfinished session at its last sample (its start if it has none). */
+    @Query(
+        """
+        UPDATE drive_session
+        SET endEpochMs = COALESCE(
+            (SELECT MAX(timeEpochMs) FROM sample WHERE sample.sessionId = drive_session.id),
+            startEpochMs
+        )
+        WHERE endEpochMs IS NULL
+        """,
+    )
+    abstract suspend fun closeUnfinishedSessions()
+
     @Query("SELECT DISTINCT dayEpochDay FROM drive_session ORDER BY dayEpochDay")
     abstract fun recordedDays(): Flow<List<Long>>
 
