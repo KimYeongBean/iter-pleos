@@ -3,6 +3,7 @@ package io.github.kimyeongbean.iter.vehicle
 import android.content.Context
 import androidx.room.Room
 import io.github.kimyeongbean.iter.model.DriveSession
+import io.github.kimyeongbean.iter.model.DriveSessionSource
 import io.github.kimyeongbean.iter.model.GeoPoint
 import io.github.kimyeongbean.iter.model.Sample
 import kotlinx.coroutines.flow.Flow
@@ -25,17 +26,40 @@ class RecordStore private constructor(
 
     /** Saves [session]. Saving a session with the same start time and source again replaces it. */
     suspend fun save(session: DriveSession) {
-        val day = Instant.ofEpochMilli(session.startEpochMs).atZone(zone).toLocalDate()
         dao.replaceSession(
-            DriveSessionEntity(
-                startEpochMs = session.startEpochMs,
-                endEpochMs = session.endEpochMs,
-                source = session.source,
-                dayEpochDay = day.toEpochDay(),
-            ),
+            sessionEntity(session.startEpochMs, session.endEpochMs, session.source),
             session.samples.map { it.toEntity() },
         )
     }
+
+    /**
+     * Adds [newSamples] to the unfinished session that starts at [startEpochMs] from [source],
+     * creating it if needed. Writes only the new samples, so saving often while driving stays cheap.
+     */
+    internal suspend fun appendInProgress(
+        startEpochMs: Long,
+        source: DriveSessionSource,
+        newSamples: List<Sample>,
+    ) = dao.appendSamples(sessionEntity(startEpochMs, endEpochMs = null, source), newSamples.map { it.toEntity() })
+
+    /** Ends sessions left unfinished (app killed mid-drive) at their last saved sample. */
+    internal suspend fun closeUnfinishedSessions() = dao.closeUnfinishedSessions()
+
+    private fun sessionEntity(
+        startEpochMs: Long,
+        endEpochMs: Long?,
+        source: DriveSessionSource,
+    ) = DriveSessionEntity(
+        startEpochMs = startEpochMs,
+        endEpochMs = endEpochMs,
+        source = source,
+        dayEpochDay =
+        Instant
+            .ofEpochMilli(startEpochMs)
+            .atZone(zone)
+            .toLocalDate()
+            .toEpochDay(),
+    )
 
     /** Dates that have at least one drive session, oldest first. Emits again after every change. */
     fun recordedDates(): Flow<List<LocalDate>> = dao.recordedDays().map { days -> days.map(LocalDate::ofEpochDay) }
