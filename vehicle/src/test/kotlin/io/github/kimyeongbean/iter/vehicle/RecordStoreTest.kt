@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.DriveSessionSource
 import io.github.kimyeongbean.iter.model.GeoPoint
+import io.github.kimyeongbean.iter.model.SAMPLE_INTERVAL_MS
 import io.github.kimyeongbean.iter.model.Sample
 import io.github.kimyeongbean.iter.model.TurnSignal
 import kotlinx.coroutines.flow.first
@@ -41,12 +42,12 @@ class RecordStoreTest {
         source: DriveSessionSource = DriveSessionSource.VEHICLE,
     ) = DriveSession(
         startEpochMs = startEpochMs,
-        endEpochMs = startEpochMs + (seconds - 1) * 1_000L,
+        endEpochMs = startEpochMs + (seconds - 1) * SAMPLE_INTERVAL_MS,
         source = source,
         samples =
         List(seconds) { i ->
             Sample(
-                timeEpochMs = startEpochMs + i * 1_000L,
+                timeEpochMs = startEpochMs + i * SAMPLE_INTERVAL_MS,
                 speedKmh = 10.5 * i,
                 turnSignal = TurnSignal.entries[i % TurnSignal.entries.size],
                 wiperOn = true,

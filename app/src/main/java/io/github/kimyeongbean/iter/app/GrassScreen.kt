@@ -5,6 +5,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +24,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -79,18 +83,29 @@ private fun GrassGrid(
 ) {
     // Intro clock in ms. Starts finished when the intro already played.
     val introMs = remember { Animatable(if (playIntro) 0f else INTRO_TOTAL_MS.toFloat()) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         if (playIntro) {
             introMs.animateTo(INTRO_TOTAL_MS.toFloat(), tween(INTRO_TOTAL_MS, easing = LinearEasing))
             onIntroFinished()
         }
     }
+    // A tap skips the intro to its final frame (snapTo cancels the running animation).
+    val skipIntro =
+        Modifier.pointerInput(Unit) {
+            detectTapGestures {
+                if (introMs.value < INTRO_TOTAL_MS) {
+                    scope.launch { introMs.snapTo(INTRO_TOTAL_MS.toFloat()) }
+                    onIntroFinished()
+                }
+            }
+        }
     val stepMs = (INTRO_TOTAL_MS - CELL_FADE_MS).toFloat() / (cells.size - 1).coerceAtLeast(1)
     val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
     val filled = MaterialTheme.colorScheme.primary
     val empty = MaterialTheme.colorScheme.surfaceVariant
 
-    Column(Modifier.padding(top = 16.dp)) {
+    Column(Modifier.padding(top = 16.dp).then(skipIntro)) {
         Row(Modifier.fillMaxWidth()) {
             DayOfWeek.entries.forEach { day ->
                 Text(

@@ -28,17 +28,18 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /** Days of fake drive data that "가짜 기록 넣기" fills, ending today. */
-private const val FAKE_RECORD_DAYS = 28
+private const val FAKE_DRIVE_DATA_DAYS = 28
 
 /** Debug menu (development only, hidden in release builds). */
 @Composable
 internal fun DebugMenuScreen(
     recordStore: RecordStore,
-    // Outlives this screen, so leaving mid-insert does not cancel the save.
+    // Outlives this screen and the activity, so leaving mid-insert does not cancel the save.
     scope: CoroutineScope,
     onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
+    // Application context: the toast may show after the activity is gone.
+    val context = LocalContext.current.applicationContext
     var inserting by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -50,11 +51,13 @@ internal fun DebugMenuScreen(
                 inserting = true
                 scope.launch {
                     val sessions =
-                        withContext(Dispatchers.Default) {
-                            FakeDriveData.normal(LocalDate.now(), FAKE_RECORD_DAYS, ZoneId.systemDefault())
+                        try {
+                            withContext(Dispatchers.Default) {
+                                FakeDriveData.normal(LocalDate.now(), FAKE_DRIVE_DATA_DAYS, ZoneId.systemDefault())
+                            }.onEach { recordStore.save(it) }
+                        } finally {
+                            inserting = false
                         }
-                    sessions.forEach { recordStore.save(it) }
-                    inserting = false
                     Toast
                         .makeText(
                             context,

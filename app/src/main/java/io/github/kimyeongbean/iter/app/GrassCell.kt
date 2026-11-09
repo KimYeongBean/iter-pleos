@@ -21,16 +21,14 @@ internal fun grassCells(
     minWeeks: Int = 5,
 ): List<GrassCell?> {
     val recorded = recordedDates.filterTo(HashSet()) { it <= today }
-    val thisWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val thisWeek = today.weekStart()
     val oldest = recorded.minOrNull() ?: today
-    val firstWeek =
-        minOf(
-            oldest.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
-            thisWeek.minusWeeks(minWeeks - 1L),
-        )
+    val firstWeek = minOf(oldest.weekStart(), thisWeek.minusWeeks(minWeeks - 1L))
     val dayCount = (thisWeek.toEpochDay() - firstWeek.toEpochDay() + 7).toInt()
     return List(dayCount) { i ->
         val date = firstWeek.plusDays(i.toLong())
         if (date > today) null else GrassCell(date, date in recorded)
     }
 }
+
+private fun LocalDate.weekStart() = with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

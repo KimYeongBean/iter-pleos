@@ -12,11 +12,11 @@ import androidx.compose.material3.lightColorScheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val recordStore = (application as IterApplication).recordStore
+        val app = application as IterApplication
         setContent {
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                 Surface {
-                    IterApp(recordStore = recordStore, showDebugMenu = BuildConfig.DEBUG)
+                    IterApp(recordStore = app.recordStore, appScope = app.appScope, showDebugMenu = BuildConfig.DEBUG)
                 }
             }
         }
