@@ -23,4 +23,6 @@
     <string name="map_background_light">밝은</string>
     <string name="speed_color_preview_title">미리보기</string>
     <string name="speed_kmh">%1$d km/h</string>
+    <string name="day_art_description">%1$s 하루 그림</string>
+    <string name="day_art_empty">그릴 주행 데이터가 없어요</string>
 </resources>
