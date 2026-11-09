@@ -1,10 +1,14 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -47,17 +54,25 @@ private const val INTRO_TOTAL_MS = 600
 private const val CELL_FADE_MS = 200
 
 /**
- * Grass: one cell per day, filled when the day has a day record.
- * [recordedDates] is null while loading. [onOpenDebugMenu] is null when the debug menu is hidden.
+ * Grass: one cell per day. A day with a day record shows its day art thumbnail on [background];
+ * tapping it calls [onOpenDay]. [recordedDates] is null while loading.
+ * [onOpenDebugMenu] is null when the debug menu is hidden.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun GrassScreen(
     today: LocalDate,
     recordedDates: List<LocalDate>?,
+    dayArts: DayArtCache,
+    background: MapBackground,
+    gridState: LazyGridState,
     playIntro: Boolean,
     onIntroFinished: () -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDebugMenu: (() -> Unit)?,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     Column(Modifier.fillMaxSize().padding(24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -72,16 +87,33 @@ internal fun GrassScreen(
             }
         }
         if (recordedDates != null) {
-            GrassGrid(grassCells(today, recordedDates), playIntro, onIntroFinished)
+            GrassGrid(
+                cells = grassCells(today, recordedDates),
+                dayArts = dayArts,
+                background = background,
+                gridState = gridState,
+                playIntro = playIntro,
+                onIntroFinished = onIntroFinished,
+                onOpenDay = onOpenDay,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun GrassGrid(
     cells: List<GrassCell?>,
+    dayArts: DayArtCache,
+    background: MapBackground,
+    gridState: LazyGridState,
     playIntro: Boolean,
     onIntroFinished: () -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     // Intro clock in ms. Starts finished when the intro already played.
     val introMs = remember { Animatable(if (playIntro) 0f else INTRO_TOTAL_MS.toFloat()) }
@@ -104,7 +136,7 @@ private fun GrassGrid(
         }
     val stepMs = (INTRO_TOTAL_MS - CELL_FADE_MS).toFloat() / (cells.size - 1).coerceAtLeast(1)
     val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
-    val filled = MaterialTheme.colorScheme.primary
+    val recordedBackground = Color(background.argb)
     val empty = MaterialTheme.colorScheme.surfaceVariant
 
     Column(Modifier.padding(top = 16.dp).then(skipIntro)) {
@@ -120,6 +152,7 @@ private fun GrassGrid(
         }
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
+            state = gridState,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(top = 8.dp),
@@ -134,7 +167,7 @@ private fun GrassGrid(
                         if (cell.recorded) R.string.grass_cell_recorded else R.string.grass_cell_empty,
                         cell.date.format(dateFormat),
                     )
-                Box(
+                val intro =
                     Modifier
                         .aspectRatio(1f)
                         .graphicsLayer {
@@ -144,9 +177,29 @@ private fun GrassGrid(
                             alpha = eased
                             scaleX = 0.8f + 0.2f * eased
                             scaleY = scaleX
-                        }.background(if (cell.recorded) filled else empty, RoundedCornerShape(6.dp))
+                        }
+                if (!cell.recorded) {
+                    Box(intro.background(empty, RoundedCornerShape(6.dp)).semantics { contentDescription = label })
+                    return@itemsIndexed
+                }
+                LaunchedEffect(dayArts, cell.date) { dayArts.load(cell.date) }
+                val thumbnail =
+                    with(sharedTransitionScope) {
+                        intro.sharedElement(
+                            sharedTransitionScope.rememberSharedContentState(dayArtSharedKey(cell.date)),
+                            animatedVisibilityScope,
+                            boundsTransform = DayArtGrowTransform,
+                        )
+                    }
+                Box(
+                    thumbnail
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(recordedBackground)
+                        .clickable { onOpenDay(cell.date) }
                         .semantics { contentDescription = label },
-                )
+                ) {
+                    dayArts[cell.date]?.let { DayArt(it, background, Modifier.fillMaxSize()) }
+                }
             }
         }
     }
