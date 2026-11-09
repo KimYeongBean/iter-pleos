@@ -43,6 +43,8 @@ object FakeDriveData {
         val minTargetKmh: Double,
         val maxTargetKmh: Double,
         val stopTargetPercent: Int,
+        /** Wiper and low beam always null; turn signal and steering angle drop out for stretches. */
+        val dropsSignals: Boolean = false,
     ) {
         // Gentle acceleration and braking only.
         NORMAL(2.0, 3.0, 30.0, 100.0, 20),
@@ -50,8 +52,8 @@ object FakeDriveData {
         // Never stops mid-drive, so the final stop always brakes hard from cruising speed.
         HARSH(12.0, 16.0, 40.0, 110.0, 0),
 
-        // Drives like NORMAL; some signals are missing.
-        MISSING_SIGNALS(2.0, 3.0, 30.0, 100.0, 20),
+        // Drives like NORMAL.
+        MISSING_SIGNALS(2.0, 3.0, 30.0, 100.0, 20, dropsSignals = true),
     }
 
     /**
@@ -178,8 +180,7 @@ object FakeDriveData {
                 latitudeDeg += metresThisSample * cos(headingRad) / METRES_PER_DEGREE
                 longitudeDeg += metresThisSample * sin(headingRad) / (METRES_PER_DEGREE * cos(Math.toRadians(latitudeDeg)))
 
-                val missing = kind == Kind.MISSING_SIGNALS
-                val droppedOut = missing && second % SIGNAL_DROPOUT_EVERY_S >= SIGNAL_DROPOUT_EVERY_S - SIGNAL_DROPOUT_S
+                val droppedOut = kind.dropsSignals && second % SIGNAL_DROPOUT_EVERY_S >= SIGNAL_DROPOUT_EVERY_S - SIGNAL_DROPOUT_S
                 Sample(
                     timeEpochMs = startEpochMs + second * SAMPLE_INTERVAL_MS,
                     speedKmh = speedKmh,
@@ -190,8 +191,8 @@ object FakeDriveData {
                         steeringAngleDeg < 0 -> TurnSignal.LEFT
                         else -> TurnSignal.RIGHT
                     },
-                    wiperOn = if (missing) null else wiperOn,
-                    lowBeamOn = if (missing) null else lowBeamOn,
+                    wiperOn = if (kind.dropsSignals) null else wiperOn,
+                    lowBeamOn = if (kind.dropsSignals) null else lowBeamOn,
                     steeringAngleDeg =
                     when {
                         droppedOut -> null

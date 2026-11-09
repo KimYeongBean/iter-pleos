@@ -84,7 +84,7 @@ class FakeDriveDataTest {
         val samples = FakeDriveData.normal(lastDate, dayCount, zone).flatMap { it.samples }
 
         samples.forEach { sample ->
-            assertTrue("speed ${sample.speedKmh}", sample.speedKmh in 0.0..120.0)
+            assertTrue("speed ${sample.speedKmh}", sample.speedKmh in 0.0..SPEED_LIMIT_KMH)
             assertTrue(sample.location != null)
             assertTrue(sample.turnSignal != null)
             assertTrue(sample.wiperOn != null)
