@@ -9,6 +9,8 @@ java {
 }
 
 kotlin {
+    // Every declaration states its visibility; public is for outputs in docs/interfaces.md only.
+    explicitApi()
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 

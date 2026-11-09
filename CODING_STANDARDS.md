@@ -3,6 +3,7 @@
 코드 리뷰 때 보는 **판단 규칙**만 적습니다. 기계적인 규칙은 도구가 `./gradlew build`(CI 포함)에서 잡으므로 리뷰에서 다시 보지 않습니다.
 - 서식: ktlint (`.editorconfig`). 고치기: `./gradlew ktlintFormat`
 - 모듈 의존 방향, `:art`·`:model`의 Android·Pleos SDK 금지: 루트 `build.gradle.kts`의 `checkModuleBoundaries`
+- 공개 범위 명시: `:art`·`:vehicle`은 Kotlin explicit API 모드라 `public`/`internal`을 안 적으면 컴파일 오류
 
 ## 규칙
 1. **공통 값은 한 곳에서.** SDK 레벨·라이브러리 버전은 `gradle/libs.versions.toml`에만 둡니다. [docs/interfaces.md](docs/interfaces.md) 공통 상수(샘플 간격, 속도색 최대 속도 등)는 코드에서도 상수 하나로만 정의하고 가져다 씁니다. 테스트 코드도 같습니다(예: `1_000L` 대신 `SAMPLE_INTERVAL_MS`).
@@ -13,3 +14,4 @@
    - 어디에도 없는 새 개념, 기존 행의 뜻 변경: GLOSSARY만 바꾸는 PR을 먼저 머지합니다. 뜻이 애매하면 이슈에서 합의합니다.
 4. **단위가 보이게.** 속도(km/h), 시각(epoch ms), 각도(도)처럼 단위가 있는 값은 이름이나 타입에 단위가 드러나게 합니다.
 5. **그림 로직은 결정적.** `:art`는 같은 입력이면 같은 그림 데이터를 냅니다. 현재 시각·난수·기기 설정을 직접 읽지 않고 입력으로 받습니다.
+6. **모듈 밖 공개는 계약에 있는 것만.** `:art`·`:vehicle`에서 `public`은 [docs/interfaces.md](docs/interfaces.md)의 출력에 있는 것에만 붙입니다. 어댑터 입력 타입, 저장 구조 같은 모듈 안 세부는 `internal`입니다. 새로 공개해야 하면 interfaces.md 합의가 먼저입니다.

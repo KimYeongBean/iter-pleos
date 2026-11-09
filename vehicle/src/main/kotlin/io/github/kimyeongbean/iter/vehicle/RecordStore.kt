@@ -18,14 +18,14 @@ import java.time.ZoneId
  * Real records and fake drive data are saved and read the same way (ADR 0001).
  * A day record is every drive session whose start falls on that date in [zone].
  */
-class RecordStore private constructor(
+public class RecordStore private constructor(
     private val database: RecordDatabase,
     private val zone: ZoneId,
 ) : Closeable {
     private val dao = database.recordDao()
 
     /** Saves [session]. Saving a session with the same start time and source again replaces it. */
-    suspend fun save(session: DriveSession) {
+    public suspend fun save(session: DriveSession) {
         dao.replaceSession(
             sessionEntity(session.startEpochMs, session.endEpochMs, session.source),
             session.samples.map { it.toEntity() },
@@ -62,18 +62,18 @@ class RecordStore private constructor(
     )
 
     /** Dates that have at least one drive session, oldest first. Emits again after every change. */
-    fun recordedDates(): Flow<List<LocalDate>> = dao.recordedDays().map { days -> days.map(LocalDate::ofEpochDay) }
+    public fun recordedDates(): Flow<List<LocalDate>> = dao.recordedDays().map { days -> days.map(LocalDate::ofEpochDay) }
 
     /** The day record of [date]: its drive sessions in start order. Empty if nothing was recorded. */
-    suspend fun dayRecord(date: LocalDate): List<DriveSession> = dao.sessionsOn(date.toEpochDay()).map { it.toDriveSession() }
+    public suspend fun dayRecord(date: LocalDate): List<DriveSession> = dao.sessionsOn(date.toEpochDay()).map { it.toDriveSession() }
 
-    override fun close() = database.close()
+    override fun close(): Unit = database.close()
 
-    companion object {
+    public companion object {
         private const val DATABASE_NAME = "records.db"
 
         /** Opens the store on the device. [zone] decides which date a session belongs to. */
-        fun open(
+        public fun open(
             context: Context,
             zone: ZoneId = ZoneId.systemDefault(),
         ): RecordStore {
