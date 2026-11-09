@@ -56,6 +56,7 @@ internal fun GrassScreen(
     recordedDates: List<LocalDate>?,
     playIntro: Boolean,
     onIntroFinished: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenDebugMenu: (() -> Unit)?,
 ) {
     Column(Modifier.fillMaxSize().padding(24.dp)) {
@@ -65,6 +66,7 @@ internal fun GrassScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.weight(1f),
             )
+            TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.settings_open)) }
             if (onOpenDebugMenu != null) {
                 TextButton(onClick = onOpenDebugMenu) { Text(stringResource(R.string.debug_menu_open)) }
             }

@@ -21,19 +21,22 @@ import io.github.kimyeongbean.iter.vehicle.RecordStore
 import kotlinx.coroutines.CoroutineScope
 import java.time.LocalDate
 
-private enum class Screen { GRASS, DEBUG_MENU }
+// Declared from shallow to deep: the screen move slides by this order.
+private enum class Screen { GRASS, SETTINGS, DEBUG_MENU }
 
 /** Screen move: fade + small slide, 300 ms (Notion 디자인 '애니메이션·전환 기준'). */
 private const val SCREEN_MOVE_MS = 300
 
 /** [appScope] runs work that must outlive screens and the activity. */
 @Composable
-fun IterApp(
+internal fun IterApp(
     recordStore: RecordStore,
+    speedColorSettingsStore: SpeedColorSettingsStore,
     appScope: CoroutineScope,
     showDebugMenu: Boolean,
 ) {
     var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
+    var speedColorSettings by remember(speedColorSettingsStore) { mutableStateOf(speedColorSettingsStore.load()) }
     var grassIntroPlayed by rememberSaveable { mutableStateOf(false) }
     val recordedDates by remember(recordStore) { recordStore.recordedDates() }.collectAsState(initial = null)
 
@@ -61,7 +64,18 @@ fun IterApp(
                     recordedDates = recordedDates,
                     playIntro = !grassIntroPlayed,
                     onIntroFinished = { grassIntroPlayed = true },
+                    onOpenSettings = { screen = Screen.SETTINGS },
                     onOpenDebugMenu = if (showDebugMenu) ({ screen = Screen.DEBUG_MENU }) else null,
+                )
+
+            Screen.SETTINGS ->
+                SettingsScreen(
+                    settings = speedColorSettings,
+                    onChange = {
+                        speedColorSettings = it
+                        speedColorSettingsStore.save(it)
+                    },
+                    onBack = { screen = Screen.GRASS },
                 )
 
             Screen.DEBUG_MENU ->
