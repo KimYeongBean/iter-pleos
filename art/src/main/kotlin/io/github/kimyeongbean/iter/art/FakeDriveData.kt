@@ -20,7 +20,7 @@ import kotlin.random.Random
  * Deterministic: the same arguments always give the same sessions, and a date always gets the same
  * sessions for the same seed and kind.
  */
-object FakeDriveData {
+public object FakeDriveData {
     private const val RECORDED_DAY_PERCENT = 70
     private const val RAINY_DAY_PERCENT = 20
     private const val LOW_BEAM_FROM_HOUR = 18
@@ -61,7 +61,7 @@ object FakeDriveData {
      * ending at [lastDate]. Each recorded day has a morning drive and sometimes an evening drive.
      * Session start times are local times in [zone].
      */
-    fun normal(
+    public fun normal(
         lastDate: LocalDate,
         dayCount: Int,
         zone: ZoneId,
@@ -69,7 +69,7 @@ object FakeDriveData {
     ): List<DriveSession> = generate(lastDate, dayCount, zone, seed) { Kind.NORMAL }
 
     /** Like [normal], but every session has sudden acceleration and sudden braking. */
-    fun harsh(
+    public fun harsh(
         lastDate: LocalDate,
         dayCount: Int,
         zone: ZoneId,
@@ -80,7 +80,7 @@ object FakeDriveData {
      * Like [normal], but some signals are missing: wiper and low beam are always null, and the
      * turn signal and steering angle drop out (null) for stretches. Time, speed and location stay.
      */
-    fun missingSignals(
+    public fun missingSignals(
         lastDate: LocalDate,
         dayCount: Int,
         zone: ZoneId,
@@ -91,7 +91,7 @@ object FakeDriveData {
      * All three kinds over the range, one kind per date (rotating by date), so each date shows
      * exactly one kind. A date always gets the same kind and sessions.
      */
-    fun allKinds(
+    public fun allKinds(
         lastDate: LocalDate,
         dayCount: Int,
         zone: ZoneId,

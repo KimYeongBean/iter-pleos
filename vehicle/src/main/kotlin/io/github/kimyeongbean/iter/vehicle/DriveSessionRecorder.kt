@@ -22,7 +22,7 @@ internal const val IN_PROGRESS_SAVE_EVERY_SAMPLES = 10
  * [DRIVE_SESSION_END_WAIT_MS]; its end time is when that stop began, and samples after it are dropped.
  * All timing comes from the sample times, not the wall clock.
  */
-class DriveSessionRecorder(
+public class DriveSessionRecorder(
     private val store: RecordStore,
 ) {
     private val inProgressState = MutableStateFlow(false)
@@ -31,7 +31,7 @@ class DriveSessionRecorder(
     private val recordLock = Mutex()
 
     /** True while a drive session is being recorded (for the "기록 중" display). */
-    val inProgress: StateFlow<Boolean> = inProgressState.asStateFlow()
+    public val inProgress: StateFlow<Boolean> = inProgressState.asStateFlow()
 
     /**
      * First closes drive sessions left unfinished by an earlier run (end = last saved sample), then
