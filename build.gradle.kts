@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.ktlint) apply false
 }
 
 // Module boundaries from docs/interfaces.md. Change both together (interfaces.md needs agreement first).
@@ -55,7 +56,13 @@ val checkModuleBoundaries by tasks.registering {
     }
 }
 
+// Formatting is a mechanical rule: ktlintCheck runs under check (./gradlew build, CI).
+// Fix locally with ./gradlew ktlintFormat. Judgement rules live in CODING_STANDARDS.md.
 subprojects {
+    apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
+    extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set(rootProject.libs.versions.ktlint.get())
+    }
     plugins.withId("base") {
         tasks.named("check") { dependsOn(checkModuleBoundaries) }
     }
