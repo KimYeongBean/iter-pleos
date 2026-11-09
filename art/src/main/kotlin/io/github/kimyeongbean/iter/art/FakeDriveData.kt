@@ -15,7 +15,8 @@ import kotlin.random.Random
 
 /**
  * Generates fake drive data (GLOSSARY: 가짜 주행 데이터): complete drive sessions over several dates.
- * Deterministic: the same arguments always give the same sessions.
+ * Deterministic: the same arguments always give the same sessions, and a date always gets the same
+ * sessions for the same seed.
  */
 object FakeDriveData {
     private const val RECORDED_DAY_PERCENT = 70
@@ -25,6 +26,8 @@ object FakeDriveData {
     private const val EXTRA_DURATION_S = 12 * 60
     private const val SLOW_DOWN_BEFORE_END_S = 45
     private const val METRES_PER_DEGREE = 111_320.0
+    private const val START_SPREAD_DEG = 0.02
+    private const val NEW_TARGET_EVERY_S = 45
 
     /** Generic city-centre start point; not anyone's real location. */
     private val START_POINT = GeoPoint(latitudeDeg = 37.5665, longitudeDeg = 126.9780)
@@ -41,11 +44,12 @@ object FakeDriveData {
         seed: Long = 0L,
     ): List<DriveSession> {
         require(dayCount > 0) { "dayCount must be positive: $dayCount" }
-        val random = Random(seed)
         val firstDate = lastDate.minusDays(dayCount - 1L)
         return (0 until dayCount).flatMap { offset ->
-            if (random.nextInt(100) >= RECORDED_DAY_PERCENT) return@flatMap emptyList()
             val date = firstDate.plusDays(offset.toLong())
+            // Seeded per date, so a date gets the same sessions whatever range it is generated in.
+            val random = Random(seed * 31 + date.toEpochDay())
+            if (random.nextInt(100) >= RECORDED_DAY_PERCENT) return@flatMap emptyList()
             val rainy = random.nextInt(100) < RAINY_DAY_PERCENT
             val startTimes =
                 buildList {
@@ -74,36 +78,36 @@ object FakeDriveData {
         var speedKmh = 0.0
         var targetKmh = 0.0
         var headingDeg = random.nextDouble(360.0)
-        var turnLeftS = 0
+        var turnRemainingS = 0
         var steeringAngleDeg = 0.0
-        var latitudeDeg = START_POINT.latitudeDeg + random.nextDouble(-0.02, 0.02)
-        var longitudeDeg = START_POINT.longitudeDeg + random.nextDouble(-0.02, 0.02)
+        var latitudeDeg = START_POINT.latitudeDeg + random.nextDouble(-START_SPREAD_DEG, START_SPREAD_DEG)
+        var longitudeDeg = START_POINT.longitudeDeg + random.nextDouble(-START_SPREAD_DEG, START_SPREAD_DEG)
 
         val samples =
             List(durationS) { second ->
                 if (second >= durationS - SLOW_DOWN_BEFORE_END_S) {
                     targetKmh = 0.0
-                } else if (second % 45 == 0) {
+                } else if (second % NEW_TARGET_EVERY_S == 0) {
                     targetKmh = if (random.nextInt(100) < 20) 0.0 else random.nextDouble(30.0, 100.0)
                 }
                 // Gentle acceleration and braking only: this is the "normal" kind.
                 val stepKmh = (targetKmh - speedKmh).coerceIn(-3.0, 2.0)
                 speedKmh = (speedKmh + stepKmh).coerceAtLeast(0.0)
 
-                if (turnLeftS == 0 && speedKmh in 10.0..50.0 && random.nextInt(100) < 2) {
-                    turnLeftS = 5 + random.nextInt(6)
+                if (turnRemainingS == 0 && speedKmh in 10.0..50.0 && random.nextInt(100) < 2) {
+                    turnRemainingS = 5 + random.nextInt(6)
                     steeringAngleDeg = (if (random.nextBoolean()) 1 else -1) * random.nextDouble(10.0, 40.0)
                 }
-                val turning = turnLeftS > 0
+                val turning = turnRemainingS > 0
                 if (turning) {
-                    turnLeftS--
+                    turnRemainingS--
                     headingDeg += steeringAngleDeg * 0.2
                 }
 
-                val metres = speedKmh / 3.6
+                val metresThisSample = speedKmh / 3.6 * (SAMPLE_INTERVAL_MS / 1_000.0)
                 val headingRad = Math.toRadians(headingDeg)
-                latitudeDeg += metres * cos(headingRad) / METRES_PER_DEGREE
-                longitudeDeg += metres * sin(headingRad) / (METRES_PER_DEGREE * cos(Math.toRadians(latitudeDeg)))
+                latitudeDeg += metresThisSample * cos(headingRad) / METRES_PER_DEGREE
+                longitudeDeg += metresThisSample * sin(headingRad) / (METRES_PER_DEGREE * cos(Math.toRadians(latitudeDeg)))
 
                 Sample(
                     timeEpochMs = startEpochMs + second * SAMPLE_INTERVAL_MS,

@@ -1,6 +1,7 @@
 package io.github.kimyeongbean.iter.art
 
 import io.github.kimyeongbean.iter.model.DriveSessionSource
+import io.github.kimyeongbean.iter.model.SAMPLE_INTERVAL_MS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -37,7 +38,7 @@ class FakeDriveDataTest {
             assertTrue(session.samples.isNotEmpty())
             assertEquals(session.startEpochMs, session.samples.first().timeEpochMs)
             assertEquals(session.samples.last().timeEpochMs, session.endEpochMs)
-            session.samples.zipWithNext().forEach { (a, b) -> assertEquals(1_000L, b.timeEpochMs - a.timeEpochMs) }
+            session.samples.zipWithNext().forEach { (a, b) -> assertEquals(SAMPLE_INTERVAL_MS, b.timeEpochMs - a.timeEpochMs) }
         }
     }
 
@@ -63,5 +64,18 @@ class FakeDriveDataTest {
 
         assertEquals(first, FakeDriveData.normal(lastDate, dayCount, zone, seed = 7L))
         assertNotEquals(first, FakeDriveData.normal(lastDate, dayCount, zone, seed = 8L))
+    }
+
+    @Test
+    fun `a date gets the same sessions whatever range it is generated in`() {
+        // Inserting again on a later day must replace, not stack, the shared dates.
+        val today = FakeDriveData.normal(lastDate, dayCount, zone)
+        val tomorrow = FakeDriveData.normal(lastDate.plusDays(1), dayCount, zone)
+
+        val shared = lastDate.minusDays(dayCount - 2L)..lastDate
+        assertEquals(
+            today.filter { startDate(it.startEpochMs) in shared },
+            tomorrow.filter { startDate(it.startEpochMs) in shared },
+        )
     }
 }
