@@ -53,7 +53,7 @@ internal fun DebugMenuScreen(
                     val sessions =
                         try {
                             withContext(Dispatchers.Default) {
-                                FakeDriveData.normal(LocalDate.now(), FAKE_DRIVE_DATA_DAYS, ZoneId.systemDefault())
+                                FakeDriveData.allKinds(LocalDate.now(), FAKE_DRIVE_DATA_DAYS, ZoneId.systemDefault())
                             }.onEach { recordStore.save(it) }
                         } finally {
                             inserting = false
