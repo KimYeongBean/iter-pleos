@@ -53,6 +53,7 @@ private val DayArtGrowTransform = BoundsTransform { _, _ -> tween(GROW_MS, easin
 
 /** This date's grass thumbnail and big day art are one shared element. */
 @OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
 internal fun Modifier.dayArtSharedElement(
     date: LocalDate,
     sharedTransitionScope: SharedTransitionScope,
