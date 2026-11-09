@@ -117,6 +117,14 @@ class DayArtDataTest {
     }
 
     @Test
+    fun `sessions starting at the same time give the same data in any order`() {
+        val real = session(0L, List(3) { sample(it, 20.0) })
+        val fake = real.copy(source = DriveSessionSource.FAKE_DRIVE_DATA, samples = List(3) { sample(it, 100.0) })
+
+        assertEquals(DayArtData.of(listOf(real, fake), base), DayArtData.of(listOf(fake, real), base))
+    }
+
+    @Test
     fun `a day record without location still makes the same art`() {
         val day = FakeDriveData.normal(java.time.LocalDate.of(2026, 11, 9), 3, java.time.ZoneId.of("Asia/Seoul"))
         val withoutLocation = day.map { s -> s.copy(samples = s.samples.map { it.copy(location = null) }) }

@@ -56,8 +56,8 @@ internal fun IterApp(
     val context = LocalContext.current
     val animationsOff = remember(context) { animatorDurationScale(context) == 0f }
 
-    // Every emission means records changed, even when the date list stays equal,
-    // so count emissions to know when drawing data must be computed again.
+    // An emission can mean a day's sessions changed even when the date list stays equal
+    // (e.g. a session saved on an already recorded date), so count emissions.
     var recordedDates by remember { mutableStateOf<List<LocalDate>?>(null) }
     var recordsVersion by remember { mutableIntStateOf(0) }
     LaunchedEffect(recordStore) {
@@ -68,11 +68,15 @@ internal fun IterApp(
     }
     val background = speedColorSettings.background
     val speedColorBaseArgb = speedColorSettings.base.argbOn(background)
-    val dayArts =
-        remember(recordStore, recordsVersion, speedColorBaseArgb) {
-            DayArtCache { date ->
-                val dayRecord = recordStore.dayRecord(date)
-                withContext(Dispatchers.Default) { DayArtData.of(dayRecord, speedColorBaseArgb) }
+    val dayArts = remember(recordStore) { DayArtCache() }
+    // A new lambda whenever records or colours change, so screens keyed on it load again.
+    val loadDayArt: suspend (LocalDate) -> Unit =
+        remember(dayArts, recordsVersion, speedColorBaseArgb) {
+            { date ->
+                dayArts.load(date, inputs = recordsVersion to speedColorBaseArgb) {
+                    val dayRecord = recordStore.dayRecord(date)
+                    withContext(Dispatchers.Default) { DayArtData.of(dayRecord, speedColorBaseArgb) }
+                }
             }
         }
 
@@ -99,7 +103,8 @@ internal fun IterApp(
                     GrassScreen(
                         today = LocalDate.now(),
                         recordedDates = recordedDates,
-                        dayArts = dayArts,
+                        dayArt = { dayArts[it] },
+                        loadDayArt = loadDayArt,
                         background = background,
                         gridState = grassGridState,
                         playIntro = !grassIntroPlayed,
@@ -118,7 +123,7 @@ internal fun IterApp(
 
                 Screen.DAY -> {
                     val date = openDate ?: return@AnimatedContent
-                    LaunchedEffect(dayArts, date) { dayArts.load(date) }
+                    LaunchedEffect(loadDayArt, date) { loadDayArt(date) }
                     DayArtScreen(
                         date = date,
                         data = dayArts[date],

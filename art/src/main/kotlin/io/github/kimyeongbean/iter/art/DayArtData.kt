@@ -8,7 +8,8 @@ import io.github.kimyeongbean.iter.model.TurnSignal
  * Drawing data of a day art (GLOSSARY: 그림 데이터): shapes only, no drawing.
  * Radial: the day's drive time goes clockwise round the circle from 12 o'clock, speed sets each
  * shape's outer radius and speed colour. Radii are fractions of the drawing's radius (0 to 1).
- * Speed bars stay within [SPEED_BAR_MAX_RADIUS]; the ring outside it is free for patterns.
+ * Speed bars stay between [SPEED_BAR_INNER_RADIUS] and [SPEED_BAR_MAX_RADIUS]; the space inside
+ * and outside them is free for patterns.
  * Deterministic: the same day record and base colour always give the same data.
  */
 public data class DayArtData(
@@ -38,7 +39,8 @@ public data class DayArtData(
         ): DayArtData {
             val samples =
                 dayRecord
-                    .sortedBy { it.startEpochMs }
+                    // Source breaks a tie in start time, so input order never matters.
+                    .sortedWith(compareBy({ it.startEpochMs }, { it.source }))
                     .flatMap { session -> session.samples.sortedBy { it.timeEpochMs } }
             val total = samples.size
             val shapeCount = minOf(total, MAX_SHAPES)

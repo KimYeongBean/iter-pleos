@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.kimyeongbean.iter.art.DayArtData
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -63,7 +64,8 @@ private const val CELL_FADE_MS = 200
 internal fun GrassScreen(
     today: LocalDate,
     recordedDates: List<LocalDate>?,
-    dayArts: DayArtCache,
+    dayArt: (LocalDate) -> DayArtData?,
+    loadDayArt: suspend (LocalDate) -> Unit,
     background: MapBackground,
     gridState: LazyGridState,
     playIntro: Boolean,
@@ -89,7 +91,8 @@ internal fun GrassScreen(
         if (recordedDates != null) {
             GrassGrid(
                 cells = grassCells(today, recordedDates),
-                dayArts = dayArts,
+                dayArt = dayArt,
+                loadDayArt = loadDayArt,
                 background = background,
                 gridState = gridState,
                 playIntro = playIntro,
@@ -106,7 +109,8 @@ internal fun GrassScreen(
 @Composable
 private fun GrassGrid(
     cells: List<GrassCell?>,
-    dayArts: DayArtCache,
+    dayArt: (LocalDate) -> DayArtData?,
+    loadDayArt: suspend (LocalDate) -> Unit,
     background: MapBackground,
     gridState: LazyGridState,
     playIntro: Boolean,
@@ -182,23 +186,16 @@ private fun GrassGrid(
                     Box(intro.background(empty, RoundedCornerShape(6.dp)).semantics { contentDescription = label })
                     return@itemsIndexed
                 }
-                LaunchedEffect(dayArts, cell.date) { dayArts.load(cell.date) }
-                val thumbnail =
-                    with(sharedTransitionScope) {
-                        intro.sharedElement(
-                            sharedTransitionScope.rememberSharedContentState(dayArtSharedKey(cell.date)),
-                            animatedVisibilityScope,
-                            boundsTransform = DayArtGrowTransform,
-                        )
-                    }
+                LaunchedEffect(loadDayArt, cell.date) { loadDayArt(cell.date) }
                 Box(
-                    thumbnail
+                    intro
+                        .dayArtSharedElement(cell.date, sharedTransitionScope, animatedVisibilityScope)
                         .clip(RoundedCornerShape(6.dp))
                         .background(recordedBackground)
                         .clickable { onOpenDay(cell.date) }
                         .semantics { contentDescription = label },
                 ) {
-                    dayArts[cell.date]?.let { DayArt(it, background, Modifier.fillMaxSize()) }
+                    dayArt(cell.date)?.let { DayArt(it, background, Modifier.fillMaxSize()) }
                 }
             }
         }
