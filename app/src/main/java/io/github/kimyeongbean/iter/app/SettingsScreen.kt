@@ -59,10 +59,20 @@ internal fun SettingsScreen(
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
 
         Text(stringResource(R.string.speed_color_base_title), style = MaterialTheme.typography.titleMedium)
-        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Swatches sit on the chosen background: each colour has a variant made for that background.
+        val swatchBackground by animateColorAsState(Color(settings.background.argb), tween(COLOR_CHANGE_MS), label = "swatchBackground")
+        val ring by animateColorAsState(Color(settings.background.textArgb), tween(COLOR_CHANGE_MS), label = "ring")
+        Row(
+            Modifier
+                .selectableGroup()
+                .background(swatchBackground, RoundedCornerShape(12.dp))
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             SpeedColorBase.entries.forEach { base ->
                 SpeedColorSwatch(
                     color = Color(base.argbOn(settings.background)),
+                    ringColor = ring,
                     label = stringResource(base.label),
                     selected = base == settings.base,
                     onClick = { onChange(settings.copy(base = base)) },
@@ -89,19 +99,19 @@ internal fun SettingsScreen(
 @Composable
 private fun SpeedColorSwatch(
     color: Color,
+    ringColor: Color,
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
     val animated by animateColorAsState(color, tween(COLOR_CHANGE_MS), label = "swatch")
-    val ring = MaterialTheme.colorScheme.onSurface
     Box(
         Modifier
             // Whole 64 dp is the touch target (Pleos Radio size); the colour dot sits inside the ring.
             .size(64.dp)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = label }
-            .then(if (selected) Modifier.border(4.dp, ring, CircleShape) else Modifier)
+            .then(if (selected) Modifier.border(4.dp, ringColor, CircleShape) else Modifier)
             .padding(8.dp)
             .background(animated, CircleShape),
     )
