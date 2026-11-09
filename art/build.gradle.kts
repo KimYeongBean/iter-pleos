@@ -13,6 +13,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":model"))
+    // Fake drive data returns :model drive sessions.
+    api(project(":model"))
     testImplementation(libs.junit)
 }
