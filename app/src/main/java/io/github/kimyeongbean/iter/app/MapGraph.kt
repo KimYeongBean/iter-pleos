@@ -38,38 +38,39 @@ internal fun MapGraph(
         val progress = drawInProgress()
         val side = size.minDimension * (1 - 2 * ROUTE_MARGIN)
         val origin = Offset((size.width - side) / 2, (size.height - side) / 2)
-        val at = { p: RoutePoint -> origin + Offset(p.x * side, p.y * side) }
+        val toCanvas = { p: RoutePoint -> origin + Offset(p.x * side, p.y * side) }
         val band = size.minDimension * TURN_SIGNAL_BAND_WIDTH
         val line = size.minDimension * LINE_WIDTH
 
-        // Bands first, so the line stays on top.
+        // Bands first, so the line stays on top. A segment touching a turn signal sample gets
+        // one, so a single-sample blink still shows.
         route.strokes.forEach { stroke ->
             stroke.zipWithNext().forEach { (a, b) ->
-                if (a.turnSignalOn && b.turnSignalOn) segment(a, b, progress, at, bandColor, band)
+                if (a.turnSignalOn || b.turnSignalOn) drawSegment(a, b, progress, toCanvas, bandColor, band)
             }
         }
         route.strokes.forEach { stroke ->
             if (stroke.size == 1) {
                 val p = stroke.single()
-                if (progress >= p.timePosition) drawCircle(Color(p.colorArgb).compositeOver(backgroundColor), line / 2, at(p))
+                if (progress >= p.timePosition) drawCircle(Color(p.colorArgb).compositeOver(backgroundColor), line / 2, toCanvas(p))
             }
             stroke.zipWithNext().forEach { (a, b) ->
-                segment(a, b, progress, at, Color(b.colorArgb).compositeOver(backgroundColor), line)
+                drawSegment(a, b, progress, toCanvas, Color(b.colorArgb).compositeOver(backgroundColor), line)
             }
         }
     }
 }
 
-private fun DrawScope.segment(
+private fun DrawScope.drawSegment(
     from: RoutePoint,
     to: RoutePoint,
     progress: Float,
-    at: (RoutePoint) -> Offset,
+    toCanvas: (RoutePoint) -> Offset,
     color: Color,
     width: Float,
 ) {
     val drawn = segmentDrawnFraction(from, to, progress)
     if (drawn <= 0f) return
-    val start = at(from)
-    drawLine(color, start, lerp(start, at(to), drawn), strokeWidth = width, cap = StrokeCap.Round)
+    val start = toCanvas(from)
+    drawLine(color, start, lerp(start, toCanvas(to), drawn), strokeWidth = width, cap = StrokeCap.Round)
 }

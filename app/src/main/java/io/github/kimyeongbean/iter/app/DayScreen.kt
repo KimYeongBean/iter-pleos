@@ -48,7 +48,7 @@ import java.time.format.FormatStyle
 /** Day art draw-in on first open: drive time order, within 1.2 s (Notion 디자인 '애니메이션·전환 기준'). */
 private const val DAY_ART_DRAW_IN_MS = 1_200
 
-/** Map graph draw-in on first open: the line from the start point, within 1.5 s. */
+/** Map graph draw-in on first open: the line from the start point, within 1.5 s (same Notion page). */
 private const val MAP_GRAPH_DRAW_IN_MS = 1_500
 
 /** Grass cell → day art: the thumbnail grows into the big day art, 350 ms, decelerating. */
@@ -169,8 +169,9 @@ private class DrawIn(
 }
 
 /**
- * Plays the draw-in once [ready], after the grass cell finished growing, unless skipped.
- * Until then the drawing shows complete when [startComplete], else empty.
+ * Plays the draw-in once [ready], unless skipped. When [startComplete] (the day art growing out of
+ * the grass cell) the drawing shows complete until the grow finished, then replays from the start;
+ * otherwise it starts empty and draws right away.
  */
 @Composable
 private fun rememberDrawIn(
@@ -182,8 +183,10 @@ private fun rememberDrawIn(
     val drawIn = remember { DrawIn(play, startComplete) }
     LaunchedEffect(ready) {
         if (!ready || !drawIn.pending) return@LaunchedEffect
-        delay(GROW_MS.toLong())
-        if (!drawIn.pending) return@LaunchedEffect
+        if (startComplete) {
+            delay(GROW_MS.toLong())
+            if (!drawIn.pending) return@LaunchedEffect
+        }
         drawIn.progress.snapTo(0f)
         drawIn.progress.animateTo(1f, tween(durationMs, easing = LinearOutSlowInEasing))
         drawIn.pending = false
