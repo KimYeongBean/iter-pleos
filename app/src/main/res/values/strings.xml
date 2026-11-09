@@ -10,4 +10,17 @@
     <string name="fake_records_inserted">가짜 기록을 넣었어요 (주행 세션 %1$d개)</string>
     <string name="grass_cell_recorded">%1$s 기록 있음</string>
     <string name="grass_cell_empty">%1$s 기록 없음</string>
+    <string name="settings_open">설정</string>
+    <string name="settings_title">설정</string>
+    <string name="speed_color_base_title">속도색 기본 색</string>
+    <string name="speed_color_amber">호박색</string>
+    <string name="speed_color_lime">라임</string>
+    <string name="speed_color_cyan">청록</string>
+    <string name="speed_color_pink">분홍</string>
+    <string name="speed_color_gray">회색</string>
+    <string name="map_background_title">바탕</string>
+    <string name="map_background_dark">어두운</string>
+    <string name="map_background_light">밝은</string>
+    <string name="speed_color_preview_title">미리보기</string>
+    <string name="speed_kmh">%1$d km/h</string>
 </resources>
