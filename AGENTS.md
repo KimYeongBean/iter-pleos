@@ -31,5 +31,5 @@
 - [docs/adr/](docs/adr/README.md) — 여러 모듈에 영향을 주는 결정 기록
 
 다시 확인:
-- 새 공유 용어나 모듈 경계는 위 문서에 먼저 적고 합의하기 전에는 코드·이슈에 쓰지 않는다.
+- 새 공유 용어는 [CODING_STANDARDS.md](CODING_STANDARDS.md) 3번 기준에 따라 GLOSSARY에 적는다. 모듈 경계는 interfaces.md에 먼저 적고 합의하기 전에는 코드·이슈에 쓰지 않는다.
 - 다른 소유자의 모듈 파일은 수정하지 않는다. 필요하면 이슈로 요청한다.
