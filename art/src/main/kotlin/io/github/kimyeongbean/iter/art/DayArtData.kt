@@ -2,7 +2,8 @@ package io.github.kimyeongbean.iter.art
 
 import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.Sample
-import io.github.kimyeongbean.iter.model.TurnSignal
+import io.github.kimyeongbean.iter.model.inDriveOrder
+import io.github.kimyeongbean.iter.model.isOn
 
 /**
  * Drawing data of a day art (GLOSSARY: 그림 데이터): shapes only, no drawing.
@@ -37,11 +38,7 @@ public data class DayArtData(
             dayRecord: List<DriveSession>,
             speedColorBaseArgb: Int,
         ): DayArtData {
-            val samples =
-                dayRecord
-                    // Source breaks a tie in start time, so input order never matters.
-                    .sortedWith(compareBy({ it.startEpochMs }, { it.source }))
-                    .flatMap { session -> session.samples.sortedBy { it.timeEpochMs } }
+            val samples = dayRecord.inDriveOrder().flatMap { it.samples }
             val total = samples.size
             val shapeCount = minOf(total, MAX_SHAPES)
             // Shape k covers samples [k * total / shapeCount, (k + 1) * total / shapeCount).
@@ -76,7 +73,7 @@ public data class DayArtData(
 
         /** A pattern shows when any sample has the signal on. A missing (null) signal never shows one. */
         private fun patternsOf(samples: List<Sample>): Set<DayArtPattern> = buildSet {
-            if (samples.any { it.turnSignal != null && it.turnSignal != TurnSignal.OFF }) add(DayArtPattern.TURN_SIGNAL)
+            if (samples.any { it.turnSignal.isOn }) add(DayArtPattern.TURN_SIGNAL)
             if (samples.any { it.wiperOn == true }) add(DayArtPattern.WIPER)
             if (samples.any { it.lowBeamOn == true }) add(DayArtPattern.LOW_BEAM)
         }

@@ -26,6 +26,9 @@ enum class TurnSignal {
     HAZARD,
 }
 
+/** Turn signal on (docs/interfaces.md 0, shared rule): left, right or hazard. Off or missing (null) is off. */
+val TurnSignal?.isOn: Boolean get() = this != null && this != TurnSignal.OFF
+
 data class GeoPoint(
     val latitudeDeg: Double,
     val longitudeDeg: Double,
