@@ -330,10 +330,6 @@ private fun GrassGrid(
     val labelPadding = if (wide) Modifier.padding(start = 12.dp, top = 8.dp) else Modifier.padding(start = 8.dp, top = 4.dp)
 
     Column(modifier.then(skipIntro), verticalArrangement = Arrangement.spacedBy(cellGap)) {
-        Text(
-            stringResource(R.string.grass_title),
-            style = if (wide) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
-        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(cellGap)) {
             DayOfWeek.entries.forEach { day ->
                 Text(
