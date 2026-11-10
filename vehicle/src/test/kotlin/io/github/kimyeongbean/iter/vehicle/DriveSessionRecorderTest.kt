@@ -281,25 +281,52 @@ class DriveSessionRecorderTest {
     }
 
     @Test
-    fun `manual end stops a drive session at once and gear D starts a new one only after leaving D`() = runBlocking {
+    fun `manual end in gear P ends a drive session at once without the parked wait`() = runBlocking {
         val store = openStore()
         val recorder = DriveSessionRecorder(store)
         val start = at(nov9, 8)
-        val ended = signals(start, drive(20))
-        val stillInD = signals(start + 20 * SAMPLE_INTERVAL_MS, drive(30))
-        val next = signals(start + 50 * SAMPLE_INTERVAL_MS, parked(5), drive(10), parked(endWaitS + 1))
+        val played = signals(start, drive(20), parked(5))
 
         recorder.record(
             flow {
-                emitAll(ended.asFlow())
+                emitAll(played.asFlow())
                 recorder.requestEnd()
-                emitAll(stillInD.asFlow())
-                emitAll(next.asFlow())
+                emitAll(signals(start + 25 * SAMPLE_INTERVAL_MS, parked(endWaitS + 1)).asFlow())
             },
         )
 
-        val nextStopStart = start + (50 + 5 + 10) * SAMPLE_INTERVAL_MS
-        assertEquals(listOf(manualSession(ended), expectedSession(next, nextStopStart)), store.dayRecord(nov9))
+        assertEquals(listOf(manualSession(played)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `manual end while the gear is D is dropped and the drive session goes on`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val beforeEnd = signals(start, drive(20))
+        val afterEnd = signals(start + 20 * SAMPLE_INTERVAL_MS, drive(30), parked(endWaitS + 1))
+
+        recorder.record(
+            flow {
+                emitAll(beforeEnd.asFlow())
+                recorder.requestEnd()
+                emitAll(afterEnd.asFlow())
+            },
+        )
+
+        val played = beforeEnd + afterEnd
+        assertEquals(listOf(expectedSession(played, start + 50 * SAMPLE_INTERVAL_MS)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `a start request made while not recording is dropped`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        recorder.requestStart()
+
+        recorder.record(signals(at(nov9, 8), parked(10)).asFlow())
+
+        assertEquals(emptyList<LocalDate>(), store.recordedDates().first())
     }
 
     @Test

@@ -30,4 +30,5 @@
     <string name="recording">기록 중</string>
     <string name="start_recording">기록 시작</string>
     <string name="end_recording">기록 끝</string>
+    <string name="end_recording_when_parked">기어를 P에 두면 끝낼 수 있어요</string>
 </resources>

@@ -87,8 +87,8 @@ internal fun IterApp(
             }
         }
 
-    val recording by recorder.inProgress.collectAsState()
-    if (recording) {
+    val inProgress by recorder.inProgress.collectAsState()
+    if (inProgress) {
         // Swapped in without a transition: leaving the record screens stops their animations at once.
         RecordingScreen(onEnd = recorder::requestEnd)
         return

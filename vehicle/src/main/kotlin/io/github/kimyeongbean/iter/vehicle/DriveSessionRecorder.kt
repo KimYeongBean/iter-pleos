@@ -32,7 +32,10 @@ public class DriveSessionRecorder(
     /** Only one [record] at a time: a second one would close the session the first is writing. */
     private val recordLock = Mutex()
 
-    /** The latest manual request not yet handled; the next vehicle signal handles it. */
+    /**
+     * The latest manual request not yet handled; the next vehicle signal handles it. One slot: a
+     * newer request replaces an unhandled one (the screen offers start and end at different times).
+     */
     private val manualRequest = AtomicReference<ManualRequest?>(null)
 
     /** True while a drive session is being recorded (for the "기록 중" display). */
@@ -47,9 +50,9 @@ public class DriveSessionRecorder(
     }
 
     /**
-     * Ends the drive session in progress at its last sample, without the parked wait. If the gear is
-     * still D, gear D starts a new drive session only after the gear has left D. Ignored when no
-     * drive session is in progress.
+     * Ends the drive session in progress at its last sample, without the parked wait. Honoured only
+     * when the gear is P or unknown (no gear signal): while the car may be moving the record screens
+     * must stay closed, so the request is dropped. Ignored when no drive session is in progress.
      */
     public fun requestEnd() {
         manualRequest.set(ManualRequest.END)
@@ -59,38 +62,41 @@ public class DriveSessionRecorder(
      * First closes drive sessions left unfinished by an earlier run (end = last saved sample), then
      * records from [signals] until the flow ends or the caller is cancelled. Calls run one at a time.
      * If [signals] ends mid-drive, the samples so far are saved and the session stays unfinished.
+     * Manual requests made while no [record] was running are dropped.
      */
     internal suspend fun record(signals: Flow<VehicleSignals>) = recordLock.withLock {
+        manualRequest.set(null)
         store.closeUnfinishedSessions()
         var current: Recording? = null
-        // Set by a manual end in gear D, so gear D does not restart the session it just ended.
-        var autoStartBlocked = false
+
+        suspend fun finish(
+            recording: Recording,
+            endEpochMs: Long,
+        ) {
+            store.save(recording.finishedAt(endEpochMs))
+            current = null
+            inProgressState.value = false
+        }
         try {
             signals.collect { signal ->
                 val request = manualRequest.getAndSet(null)
-                var recording = current
-                if (request == ManualRequest.END && recording != null) {
-                    store.save(recording.finishedAt(recording.lastSampleEpochMs))
-                    current = null
-                    recording = null
-                    inProgressState.value = false
-                    autoStartBlocked = true
-                }
-                if (signal.gear != null && signal.gear != Gear.DRIVE) autoStartBlocked = false
+                val recording = current
                 if (recording == null) {
                     val manualStart = request == ManualRequest.START
-                    if (manualStart || (signal.gear == Gear.DRIVE && !autoStartBlocked)) {
+                    if (manualStart || signal.gear == Gear.DRIVE) {
                         // Save the first sample at once, so even a very short run leaves the session.
                         current = Recording(signal.sample, manualStart).also { it.saveNewSamples() }
                         inProgressState.value = true
                     }
                     return@collect
                 }
+                if (request == ManualRequest.END && (signal.gear == null || signal.gear == Gear.PARK)) {
+                    finish(recording, recording.lastSampleEpochMs)
+                    return@collect
+                }
                 val endEpochMs = recording.add(signal)
                 if (endEpochMs != null) {
-                    store.save(recording.finishedAt(endEpochMs))
-                    current = null
-                    inProgressState.value = false
+                    finish(recording, endEpochMs)
                 } else if (recording.unsavedCount >= IN_PROGRESS_SAVE_EVERY_SAMPLES) {
                     recording.saveNewSamples()
                 }
