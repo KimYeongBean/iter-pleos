@@ -7,7 +7,9 @@ Iter는 Pleos Vehicle SDK를 활용한 Android Automotive OS(AAOS) 앱입니다.
 
 ## 개발 환경
 ### 요구 사항
-준비 중
+- JDK 17
+- Android SDK (compileSdk 35). 환경 변수 `ANDROID_HOME`에 SDK 경로를 두거나 `local.properties`에 `sdk.dir`을 적습니다.
+- 에뮬레이터 확인: Pleos Connect Emulator v2.1.0 이상, `adb`가 PATH에 있어야 합니다.
 ### 빌드 및 실행
 준비 중
 ### 에뮬레이터 / 실차 테스트
@@ -20,6 +22,14 @@ Pleos Connect Emulator v2.1.0(Virtual Console 지원 최소 버전)에서 확인
    ```
    그다음 PC 브라우저에서 `http://127.0.0.1:8088/`을 엽니다.
 3. Gear Selection에서 **D**를 고르고 **ACCEL**을 누르고 있으면 차속이 오릅니다. 정차한 뒤 **P**로 두고 60초가 지나면 주행 세션이 끝나 잔디에 나타납니다.
+
+이 에뮬레이터는 user 빌드라 `adb shell cmd car_service inject-vhal-event`로 신호를 넣을 수 없습니다. 주행을 스크립트로 재현할 때는 Virtual Console HTTP API를 씁니다 (`adb forward` 후).
+```bash
+curl -X PUT "http://127.0.0.1:8088/vehicle/gear?gear=Drive"   # Park / Reverse / Neutral / Drive
+curl -X PUT "http://127.0.0.1:8088/vehicle/controls?speed=60&accelerator=0&brake=0&steering=0"   # km/h, %, 도
+curl http://127.0.0.1:8088/vehicle/state   # 지금 값
+```
+`speed`는 그 순간 값이고, 에뮬레이터가 감속을 흉내 내 초당 약 3~5 km/h씩 줄어듭니다(브레이크를 넣으면 더 빨리). 일정 속도를 유지하려면 1초마다 다시 보냅니다. Virtual Console 페이지를 열어 두면 페이지도 브레이크를 0으로 되돌리니, 스크립트로 조작할 때는 페이지를 닫습니다.
 
 AAOS 에뮬레이터는 사용자 10으로 돌아서, 앱 DB를 볼 때는 `run-as io.github.kimyeongbean.iter --user 10`을 씁니다.
 
