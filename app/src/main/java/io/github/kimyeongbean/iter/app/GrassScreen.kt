@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
+import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -35,8 +36,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +51,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -69,7 +74,8 @@ private const val CELL_FADE_MS = 200
 private val WIDE_MIN_WIDTH = 1000.dp
 private val TODAY_CARD_WIDTH = 520.dp
 
-private val DriveSummaryTimeFormat = DateTimeFormatter.ofPattern("HH:mm")
+/** The intro spreads over this many cells, the weeks on screen at first open; older cells are scrolled away. */
+private const val INTRO_CELLS = 5 * 7
 
 /**
  * Grass: the today card and one cell per day. A day with a day record shows its day art thumbnail
@@ -109,6 +115,9 @@ internal fun GrassScreen(
             if (recordedDates == null) return@Column
             val todayRecorded = today in recordedDates
             LaunchedEffect(loadDayArt, today, todayRecorded) { if (todayRecorded) loadDayArt(today) }
+            // Opened from the today card, the day screen just moves in: today's cell must not grow
+            // into it, since the tap was not on the cell.
+            var openedFromTodayCard by remember { mutableStateOf(false) }
             val todayCard: @Composable (Modifier) -> Unit = { modifier ->
                 TodayCard(
                     today = today,
@@ -117,7 +126,10 @@ internal fun GrassScreen(
                     summary = todaySummary,
                     background = background,
                     wide = wide,
-                    onOpen = { onOpenDay(today) },
+                    onOpen = {
+                        openedFromTodayCard = true
+                        onOpenDay(today)
+                    },
                     modifier = modifier,
                 )
             }
@@ -125,6 +137,7 @@ internal fun GrassScreen(
                 GrassGrid(
                     cells = grassCells(today, recordedDates),
                     today = today,
+                    todayCellGrows = !openedFromTodayCard,
                     dayArt = dayArt,
                     loadDayArt = loadDayArt,
                     background = background,
@@ -181,7 +194,7 @@ private fun GrassHeader(
 /** A round button with a sliders icon; "설정" is its accessibility label. */
 @Composable
 private fun SettingsButton(
-    size: Dp,
+    diameter: Dp,
     onClick: () -> Unit,
 ) {
     val description = stringResource(R.string.settings_open)
@@ -190,17 +203,17 @@ private fun SettingsButton(
         onClick = onClick,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.size(size).semantics { contentDescription = description },
+        modifier = Modifier.size(diameter).semantics { contentDescription = description },
     ) {
-        Canvas(Modifier.fillMaxSize().padding(size * 0.28f)) {
-            val stroke = Stroke(width = this.size.minDimension * 0.09f, cap = StrokeCap.Round)
-            val knobRadius = this.size.minDimension * 0.12f
+        Canvas(Modifier.fillMaxSize().padding(diameter * 0.28f)) {
+            val stroke = Stroke(width = size.minDimension * 0.09f, cap = StrokeCap.Round)
+            val knobRadius = size.minDimension * 0.12f
             // Two sliders: a line with a knob towards the right, then one with a knob towards the left.
             listOf(0.25f to 0.68f, 0.75f to 0.32f).forEach { (yFraction, knobFraction) ->
-                val y = this.size.height * yFraction
-                val knobX = this.size.width * knobFraction
+                val y = size.height * yFraction
+                val knobX = size.width * knobFraction
                 drawLine(iconColor, Offset(0f, y), Offset(knobX - knobRadius, y), stroke.width, stroke.cap)
-                drawLine(iconColor, Offset(knobX + knobRadius, y), Offset(this.size.width, y), stroke.width, stroke.cap)
+                drawLine(iconColor, Offset(knobX + knobRadius, y), Offset(size.width, y), stroke.width, stroke.cap)
                 drawCircle(iconColor, knobRadius, Offset(knobX, y), style = stroke)
             }
         }
@@ -222,22 +235,22 @@ private fun TodayCard(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val dateText = remember(today) { today.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)) }
+    // Month, day and weekday in the locale's order, without the year ("11월 10일 화요일").
+    val dateText =
+        remember(today) {
+            val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMdEEEE")
+            today.format(DateTimeFormatter.ofPattern(pattern))
+        }
     val openLabel = stringResource(R.string.today_card_open)
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     val summaryText =
         when {
             !recorded -> stringResource(R.string.today_empty)
 
+            // Recorded, but the summary is still loading.
             summary == null -> ""
 
-            else ->
-                stringResource(
-                    R.string.drive_summary,
-                    summary.sessionCount,
-                    summary.firstStart.format(DriveSummaryTimeFormat),
-                    summary.lastEnd.format(DriveSummaryTimeFormat),
-                )
+            else -> stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText)
         }
     val art: @Composable (Modifier) -> Unit = { artModifier ->
         Box(artModifier.aspectRatio(1f).clip(MaterialTheme.shapes.large).background(Color(background.argb))) {
@@ -279,6 +292,7 @@ private fun TodayCard(
 private fun GrassGrid(
     cells: List<GrassCell?>,
     today: LocalDate,
+    todayCellGrows: Boolean,
     dayArt: (LocalDate) -> DayArtData?,
     loadDayArt: suspend (LocalDate) -> Unit,
     background: MapBackground,
@@ -313,7 +327,9 @@ private fun GrassGrid(
                 }
             }
         }
-    val stepMs = (INTRO_TOTAL_MS - CELL_FADE_MS).toFloat() / (cells.size - 1).coerceAtLeast(1)
+    // The grid opens on its last weeks, so the intro runs over those cells; older ones are already shown.
+    val introFirstIndex = (cells.size - INTRO_CELLS).coerceAtLeast(0)
+    val stepMs = (INTRO_TOTAL_MS - CELL_FADE_MS).toFloat() / (cells.size - introFirstIndex - 1).coerceAtLeast(1)
     val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
     val recordedBackground = Color(background.argb)
     val recordedText = Color(background.textArgb)
@@ -361,7 +377,7 @@ private fun GrassGrid(
                         .aspectRatio(1f)
                         .graphicsLayer {
                             // Read the clock here so the intro redraws without recomposing.
-                            val fraction = ((introMs.value - index * stepMs) / CELL_FADE_MS).coerceIn(0f, 1f)
+                            val fraction = ((introMs.value - (index - introFirstIndex) * stepMs) / CELL_FADE_MS).coerceIn(0f, 1f)
                             val eased = LinearOutSlowInEasing.transform(fraction)
                             alpha = eased
                             scaleX = 0.8f + 0.2f * eased
@@ -371,14 +387,20 @@ private fun GrassGrid(
                 if (!cell.recorded) {
                     val outline = if (cell.date == today) todayRing else Modifier.border(2.dp, emptyOutline, cellShape)
                     Box(intro.then(outline).semantics { contentDescription = description }) {
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = secondary, modifier = labelPadding)
+                        CellLabel(label, secondary, labelPadding)
                     }
                     return@itemsIndexed
                 }
                 LaunchedEffect(loadDayArt, cell.date) { loadDayArt(cell.date) }
+                val grows =
+                    if (cell.date != today || todayCellGrows) {
+                        Modifier.dayArtSharedElement(cell.date, sharedTransitionScope, animatedVisibilityScope)
+                    } else {
+                        Modifier
+                    }
                 Box(
                     intro
-                        .dayArtSharedElement(cell.date, sharedTransitionScope, animatedVisibilityScope)
+                        .then(grows)
                         .clip(cellShape)
                         .background(recordedBackground)
                         .then(todayRing)
@@ -386,9 +408,26 @@ private fun GrassGrid(
                         .semantics { contentDescription = description },
                 ) {
                     dayArt(cell.date)?.let { DayArt(it, background, Modifier.fillMaxSize()) }
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = recordedText, modifier = labelPadding)
+                    CellLabel(label, recordedText, labelPadding)
                 }
             }
         }
     }
+}
+
+/** The date in a cell's corner. Screen readers get the cell's description instead, so this is hidden from them. */
+@Composable
+private fun CellLabel(
+    label: String,
+    color: Color,
+    modifier: Modifier,
+) {
+    Text(
+        label,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier.clearAndSetSemantics {},
+    )
 }

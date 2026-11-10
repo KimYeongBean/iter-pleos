@@ -4,6 +4,7 @@ import io.github.kimyeongbean.iter.model.DriveSession
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
@@ -15,6 +16,12 @@ internal data class DriveSummary(
     val firstStart: LocalTime,
     val lastEnd: LocalTime,
 )
+
+private val TimeFormat = DateTimeFormatter.ofPattern("HH:mm")
+
+/** The first start to the last end, as shown: "08:12 – 18:47". */
+internal val DriveSummary.timeSpanText: String
+    get() = "${firstStart.format(TimeFormat)} – ${lastEnd.format(TimeFormat)}"
 
 /**
  * Summary of [dayRecord] with times in [zone], or null for a day with no drive session.

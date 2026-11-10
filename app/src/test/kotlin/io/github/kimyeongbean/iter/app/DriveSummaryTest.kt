@@ -41,6 +41,11 @@ class DriveSummaryTest {
     }
 
     @Test
+    fun `the time span reads as two 24 hour times`() {
+        assertEquals("08:12 – 18:47", DriveSummary(2, LocalTime.of(8, 12), LocalTime.of(18, 47)).timeSpanText)
+    }
+
+    @Test
     fun `a session still in progress ends at its last sample, or at its start with no sample`() {
         val lastSample = Sample(epochMs(9, 20), 30.0, null, null, null, null, null, null)
         val withSample = session(epochMs(9, 0), null, listOf(lastSample))
