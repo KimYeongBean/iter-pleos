@@ -15,12 +15,14 @@ class ArtThemeTest {
                 } else {
                     listOf(SpeedColorBase.AMBER to MapBackground.DARK)
                 }
-            choices.map { (base, background) -> "$theme $base $background" to theme.panel(base, background) }
+            choices.flatMap { (base, background) ->
+                listOf(false, true).map { dark -> "$theme $base $background dark=$dark" to theme.panel(base, background, dark) }
+            }
         }
 
     @Test
     fun `the default theme draws with the chosen base colour and background`() {
-        val panel = ArtTheme.DEFAULT.panel(SpeedColorBase.CYAN, MapBackground.LIGHT)
+        val panel = ArtTheme.DEFAULT.panel(SpeedColorBase.CYAN, MapBackground.LIGHT, dark = true)
 
         assertEquals(MapBackground.LIGHT.argb, panel.argb)
         assertEquals(MapBackground.LIGHT.textArgb, panel.textArgb)
@@ -30,8 +32,8 @@ class ArtThemeTest {
     @Test
     fun `the other themes ignore the chosen base colour and background`() {
         ArtTheme.entries.filter { it != ArtTheme.DEFAULT }.forEach { theme ->
-            val one = theme.panel(SpeedColorBase.AMBER, MapBackground.DARK)
-            val other = theme.panel(SpeedColorBase.CYAN, MapBackground.LIGHT)
+            val one = theme.panel(SpeedColorBase.AMBER, MapBackground.DARK, dark = false)
+            val other = theme.panel(SpeedColorBase.CYAN, MapBackground.LIGHT, dark = false)
 
             assertEquals("$theme", one, other)
         }
@@ -62,10 +64,37 @@ class ArtThemeTest {
     }
 
     @Test
+    fun `an advanced theme's panel sits flush in its card and follows the system theme`() {
+        ArtTheme.entries.filter { it.art != null }.forEach { theme ->
+            listOf(true, false).forEach { dark ->
+                val panel = theme.panel(SpeedColorBase.AMBER, MapBackground.DARK, dark)
+                assertEquals("$theme dark=$dark", theme.appColors(dark).cardArgb, panel.argb)
+                assertEquals("$theme dark=$dark", dark, panel.dark)
+            }
+        }
+    }
+
+    @Test
+    fun `text on the app background has at least 4_5 to 1 contrast on every backdrop pattern colour`() {
+        ArtTheme.entries.forEach { theme ->
+            val art = theme.art ?: return@forEach
+            listOf(true, false).forEach { dark ->
+                val colors = theme.appColors(dark)
+                art.backdropArgbs(dark).forEach { backdrop ->
+                    listOf("text" to colors.textArgb, "secondary text" to colors.textSecondaryArgb).forEach { (name, text) ->
+                        val ratio = contrast(text, backdrop)
+                        assertTrue("$theme dark=$dark $name: $ratio", ratio >= 4.5)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `the mark colour has at least 4_5 to 1 contrast on the app background in both system themes`() {
         ArtTheme.entries.forEach { theme ->
-            mapOf(true to IterDarkColors, false to IterLightColors).forEach { (dark, colors) ->
-                val ratio = contrast(theme.accentArgb(SpeedColorBase.AMBER, dark), colors.backgroundArgb)
+            listOf(true, false).forEach { dark ->
+                val ratio = contrast(theme.accentArgb(SpeedColorBase.AMBER, dark), theme.appColors(dark).backgroundArgb)
                 assertTrue("$theme dark=$dark: $ratio", ratio >= 4.5)
             }
         }

@@ -43,6 +43,8 @@ internal data class RoutePoint(
     val y: Float,
     /** Speed colour of the sample, ARGB. */
     val colorArgb: Int,
+    /** How fast the sample was, 0 at standstill to 1 at the speed colour's strongest speed. */
+    val speedIntensity: Float,
     /** Where the point is among the day's located samples, 0 (first) to 1 (last). Drives the draw-in. */
     val timePosition: Float,
     /** Turn signal left, right or hazard at this sample; false when off or missing. */
@@ -113,6 +115,7 @@ internal fun mapRoute(
                     x = (left + (location.longitudeDeg - west) * lonScale * scale).toFloat(),
                     y = (top + (north - location.latitudeDeg) * scale).toFloat(),
                     colorArgb = SpeedColor.argb(speedColorBaseArgb, sample.speedKmh),
+                    speedIntensity = SpeedColor.intensity(sample.speedKmh).toFloat(),
                     timePosition = index++ / lastIndex,
                     turnSignalOn = sample.turnSignal.isOn,
                     wiperOn = sample.wiperOn == true,

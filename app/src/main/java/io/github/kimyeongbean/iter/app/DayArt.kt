@@ -14,10 +14,10 @@ import io.github.kimyeongbean.iter.art.DayArtPattern
 import io.github.kimyeongbean.iter.art.DayArtShape
 
 /** Not yet drawn shapes show this faintly during the draw-in, so the grown grass cell never goes blank. */
-private const val DRAW_IN_GHOST_ALPHA = 0.15f
+internal const val DRAW_IN_GHOST_ALPHA = 0.15f
 
 /** The drawing radius leaves this share of half the box empty round the art. */
-private const val DRAWING_RADIUS_SCALE = 0.92f
+internal const val DRAWING_RADIUS_SCALE = 0.92f
 
 /** Pattern rings, as fractions of the drawing radius. Speed bars end at [DayArtData.SPEED_BAR_MAX_RADIUS]. */
 private const val LOW_BEAM_RING_RADIUS = 0.19f
@@ -34,20 +34,28 @@ internal fun DayArtShape.drawnFraction(progress: Float): Float {
 }
 
 /**
- * Day art (GLOSSARY: 하루 그림) drawn from [data] on [panel]. The grass thumbnail and the big
- * day art use this same drawing. [drawInProgress] (0 to 1, drive time) is read only while drawing,
- * so animating it redraws without recomposing.
+ * Day art (GLOSSARY: 하루 그림) drawn from [data] on [panel]; an advanced theme draws it its own
+ * way ([ThemePanel.art]). The grass thumbnail and the big day art use this same drawing.
+ * [drawInProgress] (0 to 1, drive time) is read only while drawing, so animating it redraws without
+ * recomposing. When [animateLoop], an advanced theme's repeating effect plays.
  */
 @Composable
 internal fun DayArt(
     data: DayArtData,
     panel: ThemePanel,
     modifier: Modifier = Modifier,
+    animateLoop: Boolean = false,
     drawInProgress: () -> Float = { 1f },
 ) {
     val patternColor = Color(panel.textArgb)
+    val art = panel.art
+    val loopSeconds = rememberLoopSeconds(animateLoop && art != null)
     Canvas(modifier) {
         val progress = drawInProgress()
+        if (art != null) {
+            with(art) { drawDayArt(data, panel.dark, progress, loopSeconds.floatValue) }
+            return@Canvas
+        }
         data.shapes.forEach { shape ->
             val drawn = shape.drawnFraction(progress)
             if (drawn < 1f) drawShape(shape, patternColor, sweepFraction = 1f, alpha = DRAW_IN_GHOST_ALPHA)

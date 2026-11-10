@@ -3,14 +3,16 @@ package io.github.kimyeongbean.iter.app
 import androidx.annotation.StringRes
 
 /**
- * Theme (GLOSSARY: 테마): the colours the map graph, the day art and the grass cells are drawn
- * with, chosen by the user. These are the plain themes (GLOSSARY: 단색 테마): the drawing is the
- * same, only the panel ground and the line colour differ. Only [DEFAULT] lets the user pick the
+ * Theme (GLOSSARY: 테마): the colours and the way the map graph, the day art and the grass cells
+ * are drawn, chosen by the user. In the default theme (GLOSSARY: 기본 테마) and the plain themes (GLOSSARY: 일반 테마) the drawing is the same,
+ * only the panel ground and the line colour differ. An advanced theme (GLOSSARY: 고급 테마) has
+ * its own drawing, app colours and backdrop pattern ([art]). Only [DEFAULT] lets the user pick the
  * speed colour base and the background; the others fix both.
  */
 internal enum class ArtTheme(
     @StringRes val label: Int,
     private val fixed: FixedThemeColors?,
+    val art: ThemeArt? = null,
 ) {
     DEFAULT(R.string.theme_default, null),
 
@@ -55,13 +57,26 @@ internal enum class ArtTheme(
             lowBeamArgb = 0xFF5F73A8.toInt(),
         ),
     ),
+
+    GARDEN(R.string.theme_garden, null, GardenArt),
     ;
 
-    /** What the art panels draw with. [base] and [background] count only for [DEFAULT]. */
+    /** App colours for the system theme: an advanced theme's own, else the Pleos ones. */
+    fun appColors(dark: Boolean): IterColors {
+        val art = art ?: return if (dark) IterDarkColors else IterLightColors
+        return if (dark) art.darkColors else art.lightColors
+    }
+
+    /**
+     * What the art panels draw with. [base] and [background] count only for [DEFAULT]; [dark] (the
+     * system theme) only for an advanced theme, whose panels follow the app colours.
+     */
     fun panel(
         base: SpeedColorBase,
         background: MapBackground,
+        dark: Boolean,
     ): ThemePanel {
+        if (art != null) return art.panel(dark)
         val fixed = fixed ?: return ThemePanel(background.argb, background.textArgb, base.argbOn(background), background.mapEffectColors)
         return ThemePanel(
             argb = fixed.panelArgb,
@@ -84,6 +99,7 @@ internal enum class ArtTheme(
         base: SpeedColorBase,
         dark: Boolean,
     ): Int {
+        if (art != null) return art.panel(dark).speedColorBaseArgb
         val fixed = fixed ?: return base.argbOn(if (dark) MapBackground.DARK else MapBackground.LIGHT)
         return if (dark) fixed.lineOnDarkArgb else fixed.lineOnLightArgb
     }
@@ -114,4 +130,8 @@ internal data class ThemePanel(
     val textArgb: Int,
     val speedColorBaseArgb: Int,
     val effects: MapEffectColors,
+    /** An advanced theme's own drawing; null draws the plain way. */
+    val art: ThemeArt? = null,
+    /** Which of the advanced theme's colour sets this is. */
+    val dark: Boolean = false,
 )

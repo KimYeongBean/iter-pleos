@@ -6,9 +6,15 @@ import org.junit.Test
 
 /** App theme text must read on what it sits on: 4.5:1, the Pleos design guide minimum (#69). */
 class IterColorsTest {
+    /** The Pleos colours and every advanced theme's, light and dark: name, colours, dark. */
+    private val themeColors =
+        ArtTheme.entries
+            .flatMap { theme -> listOf(false, true).map { dark -> Triple("$theme dark=$dark", theme.appColors(dark), dark) } }
+            .distinctBy { it.second }
+
     @Test
     fun `every text colour has at least 4_5 to 1 contrast on its ground`() {
-        mapOf("light" to IterLightColors, "dark" to IterDarkColors).forEach { (theme, colors) ->
+        themeColors.forEach { (theme, colors, _) ->
             with(colors) {
                 mapOf(
                     "text on background" to (textArgb to backgroundArgb),
@@ -31,10 +37,8 @@ class IterColorsTest {
     /** Also covers the Material defaults the theme leaves as they are, such as error (#79). */
     @Test
     fun `every colour scheme content colour has at least 4_5 to 1 contrast on its ground`() {
-        mapOf(
-            "light" to IterLightColors.toColorScheme(dark = false),
-            "dark" to IterDarkColors.toColorScheme(dark = true),
-        ).forEach { (theme, scheme) ->
+        themeColors.forEach { (theme, colors, dark) ->
+            val scheme = colors.toColorScheme(dark)
             with(scheme) {
                 val surfaces =
                     mapOf(
@@ -79,7 +83,7 @@ class IterColorsTest {
 
     @Test
     fun `the card stands apart from the background in both themes`() {
-        listOf(IterLightColors, IterDarkColors).forEach { colors ->
+        themeColors.forEach { (_, colors, _) ->
             assertTrue(colors.cardArgb != colors.backgroundArgb)
         }
     }
