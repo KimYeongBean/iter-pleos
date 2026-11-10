@@ -39,6 +39,8 @@ class IterColorsTest {
                 val surfaces =
                     mapOf(
                         "surface" to surface,
+                        "surfaceDim" to surfaceDim,
+                        "surfaceBright" to surfaceBright,
                         "surfaceVariant" to surfaceVariant,
                         "surfaceContainerLowest" to surfaceContainerLowest,
                         "surfaceContainerLow" to surfaceContainerLow,
@@ -58,6 +60,7 @@ class IterColorsTest {
                         "onError on error" to (onError to error),
                         "onErrorContainer on errorContainer" to (onErrorContainer to errorContainer),
                         "inverseOnSurface on inverseSurface" to (inverseOnSurface to inverseSurface),
+                        "inversePrimary on inverseSurface" to (inversePrimary to inverseSurface),
                     ) +
                         surfaces.flatMap { (name, ground) ->
                             listOf(

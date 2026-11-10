@@ -82,6 +82,8 @@ internal fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
         onSurface = text,
         onSurfaceVariant = Color(textSecondaryArgb),
         surfaceVariant = cardHigh,
+        surfaceDim = cardHigh,
+        surfaceBright = card,
         surfaceContainerLowest = card,
         surfaceContainerLow = card,
         surfaceContainer = card,
