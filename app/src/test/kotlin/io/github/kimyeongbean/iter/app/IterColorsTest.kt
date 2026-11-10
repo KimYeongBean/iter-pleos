@@ -18,9 +18,10 @@ class IterColorsTest {
                     "secondary text on card" to (textSecondaryArgb to cardArgb),
                     "secondary text on raised card" to (textSecondaryArgb to cardHighArgb),
                     "primary button text" to (onPrimaryArgb to primaryArgb),
-                ).forEach { (pair, argbs) ->
-                    val ratio = contrast(argbs.first, argbs.second)
-                    assertTrue("$theme, $pair: $ratio", ratio >= 4.5)
+                ).forEach { (label, colours) ->
+                    val (text, ground) = colours
+                    val ratio = contrast(text, ground)
+                    assertTrue("$theme, $label: $ratio", ratio >= 4.5)
                 }
             }
         }

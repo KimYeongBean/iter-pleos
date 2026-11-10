@@ -41,13 +41,12 @@ internal class IterColors(
     val outlineArgb: Int,
     val primaryArgb: Int,
     val onPrimaryArgb: Int,
-    val errorArgb: Int,
 )
 
 internal val IterLightColors =
     IterColors(
         backgroundArgb = 0xFFF7F8FA.toInt(),
-        cardArgb = 0xFFFFFFFF.toInt(),
+        cardArgb = MapBackground.LIGHT.argb,
         cardHighArgb = 0xFFEDEEF2.toInt(),
         controlArgb = 0xFFE0E1E6.toInt(),
         textArgb = 0xFF131417.toInt(),
@@ -55,21 +54,19 @@ internal val IterLightColors =
         outlineArgb = 0xFFA4A8AE.toInt(),
         primaryArgb = 0xFF131417.toInt(),
         onPrimaryArgb = 0xFFFFFFFF.toInt(),
-        errorArgb = 0xFFFE3D16.toInt(),
     )
 
 internal val IterDarkColors =
     IterColors(
         backgroundArgb = 0xFF131417.toInt(),
-        cardArgb = 0xFF1D1E21.toInt(),
+        cardArgb = MapBackground.DARK.argb,
         cardHighArgb = 0xFF313236.toInt(),
-        controlArgb = 0xFF313236.toInt(),
+        controlArgb = 0xFF44464E.toInt(),
         textArgb = 0xFFF7F8FA.toInt(),
         textSecondaryArgb = 0xFFC7C9CE.toInt(),
         outlineArgb = 0xFF686A72.toInt(),
         primaryArgb = 0xFFF7F8FA.toInt(),
         onPrimaryArgb = 0xFF131417.toInt(),
-        errorArgb = 0xFFFF4C28.toInt(),
     )
 
 private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
@@ -96,7 +93,6 @@ private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
         onSecondaryContainer = text,
         outline = Color(outlineArgb),
         outlineVariant = cardHigh,
-        error = Color(errorArgb),
     )
 }
 
@@ -104,7 +100,7 @@ private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
 @OptIn(ExperimentalTextApi::class)
 private val AstaSans =
     FontFamily(
-        listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map { weight ->
+        listOf(FontWeight.Normal, FontWeight.SemiBold, FontWeight.Bold).map { weight ->
             Font(
                 R.font.asta_sans,
                 weight = weight,
@@ -134,9 +130,9 @@ private val IterTypography =
         bodyLarge = style(30, 38, FontWeight.Normal),
         bodyMedium = style(28, 36, FontWeight.Normal),
         bodySmall = style(26, 34, FontWeight.Normal),
-        labelLarge = style(24, 28, FontWeight.Medium),
-        labelMedium = style(20, 24, FontWeight.Medium),
-        labelSmall = style(20, 24, FontWeight.Medium),
+        labelLarge = style(24, 28, FontWeight.Normal),
+        labelMedium = style(20, 24, FontWeight.Normal),
+        labelSmall = style(20, 24, FontWeight.Normal),
     )
 
 private val IterShapes =
