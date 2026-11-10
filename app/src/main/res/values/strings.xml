@@ -6,6 +6,8 @@
     <string name="debug_menu_open">디버그 메뉴</string>
     <string name="back">뒤로</string>
     <string name="insert_fake_records">가짜 기록 넣기</string>
+    <string name="insert_fake_records_hint">오늘까지 %1$d일치 가짜 주행 데이터를 기록 저장소에 넣어요</string>
+    <string name="insert_fake_records_action">넣기</string>
     <string name="inserting_fake_records">넣는 중…</string>
     <string name="fake_records_inserted">가짜 기록을 넣었어요 (주행 세션 %1$d개)</string>
     <string name="grass_cell_recorded">%1$s 기록 있음</string>
@@ -17,6 +19,8 @@
     <string name="settings_open">설정</string>
     <string name="settings_title">설정</string>
     <string name="speed_color_base_title">속도색 기본 색</string>
+    <string name="speed_color_base_hint">빠를수록 진해지는 색을 골라요</string>
+    <string name="map_background_hint">맵 그래프와 하루 그림의 바탕색</string>
     <string name="speed_color_amber">호박색</string>
     <string name="speed_color_lime">라임</string>
     <string name="speed_color_cyan">청록</string>
