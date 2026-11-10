@@ -103,10 +103,9 @@ internal fun Modifier.dayArtSharedElement(
 }
 
 /**
- * The day screen (그날 화면) of [date]: the day art small, the map graph large, each on [background],
+ * The day screen (그날 화면) of [date]: the day art small, the map graph large, each on [panel],
  * with the drive summary line and the legends. [dayArt] and [route] are null while loading;
- * [summary] is null while loading or when the date has no day record. [speedColorBaseArgb] colours
- * the speed colour legend.
+ * [summary] is null while loading or when the date has no day record.
  * When [playDrawIn], the full day art first grows out of the grass cell, then both draw in drive
  * time order once their data is ready. A tap anywhere skips both to the end. [onDrawInStarted] is
  * called on open, so the draw-in counts as played even when skipped or left early.
@@ -119,8 +118,7 @@ internal fun DayScreen(
     dayArt: DayArtData?,
     route: MapRoute?,
     summary: DriveSummary?,
-    background: MapBackground,
-    speedColorBaseArgb: Int,
+    panel: ThemePanel,
     playDrawIn: Boolean,
     animateRain: Boolean,
     onDrawInStarted: () -> Unit,
@@ -137,8 +135,8 @@ internal fun DayScreen(
     val describedDate = remember(date) { date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
     val artDescription = stringResource(R.string.day_art_description, describedDate)
     val mapDescription = stringResource(R.string.map_graph_description, describedDate)
-    val panelColor = Color(background.argb)
-    val panelText = Color(background.textArgb)
+    val panelColor = Color(panel.argb)
+    val panelText = Color(panel.textArgb)
     val panelShape = MaterialTheme.shapes.extraLarge
 
     val artPanel: @Composable (Modifier) -> Unit = { modifier ->
@@ -154,7 +152,7 @@ internal fun DayScreen(
             when {
                 dayArt == null -> Unit
                 dayArt.shapes.isEmpty() -> Text(stringResource(R.string.day_art_empty), color = panelText)
-                else -> DayArt(dayArt, background, Modifier.fillMaxSize()) { artDrawIn.progress.value }
+                else -> DayArt(dayArt, panel, Modifier.fillMaxSize()) { artDrawIn.progress.value }
             }
         }
     }
@@ -167,14 +165,14 @@ internal fun DayScreen(
                 when {
                     route == null -> Unit
                     route.strokes.isEmpty() -> Text(stringResource(R.string.map_graph_no_route), color = panelText)
-                    else -> MapGraph(route, background, Modifier.fillMaxSize(), animateRain) { routeDrawIn.progress.value }
+                    else -> MapGraph(route, panel, Modifier.fillMaxSize(), animateRain) { routeDrawIn.progress.value }
                 }
             }
-            MapGraphLegend(background, Modifier.padding(start = 28.dp, end = 28.dp, bottom = 24.dp))
+            MapGraphLegend(panel, Modifier.padding(start = 28.dp, end = 28.dp, bottom = 24.dp))
         }
     }
     val infoPanel: @Composable (Modifier) -> Unit = { modifier ->
-        DayInfo(summary, background, speedColorBaseArgb, modifier.clip(panelShape).background(panelColor).padding(28.dp))
+        DayInfo(summary, panel, modifier.clip(panelShape).background(panelColor).padding(28.dp))
     }
 
     BoxWithConstraints(
@@ -233,11 +231,10 @@ internal fun DayScreen(
 @Composable
 private fun DayInfo(
     summary: DriveSummary?,
-    background: MapBackground,
-    speedColorBaseArgb: Int,
+    panel: ThemePanel,
     modifier: Modifier = Modifier,
 ) {
-    val text = Color(background.textArgb)
+    val text = Color(panel.textArgb)
     val label = MaterialTheme.typography.labelMedium
     Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
         if (summary != null) {
@@ -249,7 +246,7 @@ private fun DayInfo(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.speed_kmh, 0), style = label, color = text)
-            SpeedColorStrip(speedColorBaseArgb, Modifier.weight(1f).height(16.dp))
+            SpeedColorStrip(panel.speedColorBaseArgb, Modifier.weight(1f).height(16.dp))
             Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = text)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -270,11 +267,11 @@ private fun DayInfo(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MapGraphLegend(
-    background: MapBackground,
+    panel: ThemePanel,
     modifier: Modifier = Modifier,
 ) {
-    val text = Color(background.textArgb)
-    val effects = background.mapEffectColors
+    val text = Color(panel.textArgb)
+    val effects = panel.effects
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LegendItem(stringResource(R.string.legend_turn_signal_section), text) { band(Color(effects.turnSignalBandArgb)) }
         LegendItem(stringResource(R.string.legend_low_beam_section), text) { band(Color(effects.lowBeamArgb)) }

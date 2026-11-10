@@ -25,4 +25,13 @@ class SpeedColorSettingsStoreTest {
         // A new instance reads from disk, like the app after a restart.
         assertEquals(chosen, SpeedColorSettingsStore(context).load())
     }
+
+    @Test
+    fun `chosen theme survives a new store instance`() {
+        val chosen = SpeedColorSettings(theme = ArtTheme.PAPER)
+
+        SpeedColorSettingsStore(context).save(chosen)
+
+        assertEquals(chosen, SpeedColorSettingsStore(context).load())
+    }
 }
