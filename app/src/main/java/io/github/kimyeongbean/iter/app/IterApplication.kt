@@ -22,6 +22,9 @@ class IterApplication : Application() {
     /** Work that must finish even if the activity is recreated (e.g. inserting fake drive data). */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    /** Whether the splash (GLOSSARY: 스플래시) already played in this process: it plays once (#110). */
+    internal var splashPlayed = false
+
     private var recording: Job? = null
 
     /**

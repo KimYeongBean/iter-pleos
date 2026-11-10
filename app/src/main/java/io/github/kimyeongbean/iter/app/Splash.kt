@@ -16,11 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,9 +54,10 @@ private const val MARK_HEIGHT_SHARE = 0.42f
 private const val LEAVE_GROWTH = 0.06f
 
 /**
- * Shows the splash (GLOSSARY: 스플래시) once, then [app]. The first screen is composed as the splash
- * starts to leave, so it is under the fade. Nothing shows when [skip]: animations are off, or the car
- * is driving and only the still "기록 중" screen may show. A tap ends the splash at once.
+ * Shows the splash (GLOSSARY: 스플래시) over [app], then fades it away. [app] is composed from the
+ * start, so it loads under the splash and nothing waits for it. Nothing shows when [skip]: the splash
+ * already played in this process, animations are off, or the car is driving and only the still
+ * "기록 중" screen may show. A tap ends the splash at once.
  */
 @Composable
 internal fun SplashThenApp(
@@ -68,8 +67,7 @@ internal fun SplashThenApp(
     skip: Boolean,
     app: @Composable () -> Unit,
 ) {
-    // Saved, so coming back to a recreated activity does not play it again.
-    var over by rememberSaveable { mutableStateOf(skip) }
+    var over by remember { mutableStateOf(skip) }
     val elapsedMs = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         if (over) return@LaunchedEffect
@@ -79,11 +77,9 @@ internal fun SplashThenApp(
     }
     // Once skipped it stays over: the splash must not start when the drive ends.
     LaunchedEffect(skip) { if (skip) over = true }
-    val leaving by remember { derivedStateOf { elapsedMs.value >= SPLASH_DRAW_MS + SPLASH_HOLD_MS } }
-    val splashShows = !over && !skip
     Box(Modifier.fillMaxSize()) {
-        if (!splashShows || leaving) app()
-        if (splashShows) Splash(theme, accentArgb, dark, elapsedMs = { elapsedMs.value }, onSkip = { over = true })
+        app()
+        if (!over && !skip) Splash(theme, accentArgb, dark, elapsedMs = { elapsedMs.value }, onSkip = { over = true })
     }
 }
 

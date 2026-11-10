@@ -1,7 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import android.content.Context
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -27,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.vehicle.DriveSessionRecorder
 import io.github.kimyeongbean.iter.vehicle.RecordStore
@@ -46,7 +43,8 @@ private const val SCREEN_MOVE_MS = 300
 /**
  * While [recorder] has a drive session in progress, only the still "기록 중" screen shows; the record
  * screens open again once it ends. [settings] is what the user picked; [onSettingsChange] keeps a
- * new pick. [appScope] runs work that must outlive screens and the activity.
+ * new pick. [appScope] runs work that must outlive screens and the activity. [animationsOff] is
+ * whether the user turned system animations off.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -57,6 +55,7 @@ internal fun IterApp(
     onSettingsChange: (SpeedColorSettings) -> Unit,
     appScope: CoroutineScope,
     showDebugMenu: Boolean,
+    animationsOff: Boolean,
 ) {
     var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
     var openDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
@@ -64,8 +63,6 @@ internal fun IterApp(
     // Dates whose day art already drew in; it draws in once, on the first open.
     var drawnInDates by rememberSaveable { mutableStateOf(emptySet<LocalDate>()) }
     val grassGridState = rememberLazyGridState()
-    val context = LocalContext.current
-    val animationsOff = remember(context) { animatorDurationScale(context) == 0f }
 
     // An emission can mean a day's sessions changed even when the date list stays equal
     // (e.g. a session saved on an already recorded date), so count emissions.
@@ -193,6 +190,3 @@ internal fun IterApp(
         }
     }
 }
-
-/** System animator duration scale; 0 means the user turned animations off. */
-internal fun animatorDurationScale(context: Context): Float = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
