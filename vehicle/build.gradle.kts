@@ -7,6 +7,8 @@ plugins {
 android {
     namespace = "io.github.kimyeongbean.iter.vehicle"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
+    // CarPropertyManager for vehicle speed (the Pleos Vehicle SDK has no vehicle speed).
+    useLibrary("android.car")
 
     defaultConfig {
         minSdk = libs.versions.androidMinSdk.get().toInt()
@@ -42,4 +44,5 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
