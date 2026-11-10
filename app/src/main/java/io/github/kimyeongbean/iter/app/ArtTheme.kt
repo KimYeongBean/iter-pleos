@@ -61,6 +61,7 @@ internal enum class ArtTheme(
     GARDEN(R.string.theme_garden, null, GardenArt),
     CONSTELLATION(R.string.theme_constellation, null, ConstellationArt),
     INK_WASH(R.string.theme_ink_wash, null, InkWashArt),
+    SNOW(R.string.theme_snow, null, SnowArt),
     ;
 
     /** App colours for the system theme: an advanced theme's own, else the Pleos ones. */
