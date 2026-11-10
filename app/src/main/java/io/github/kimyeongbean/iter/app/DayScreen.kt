@@ -46,10 +46,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.SPEED_COLOR_MAX_KMH
@@ -74,6 +76,13 @@ private val WIDE_MIN_WIDTH = 1000.dp
 
 /** Share of the width the day art column takes in the wide layout; the map graph gets the rest. */
 private const val DAY_ART_COLUMN_WEIGHT = 0.38f
+
+/** Height the summary and legends under the day art keep in the wide layout, however short the window. */
+private val DAY_INFO_MIN_HEIGHT = 220.dp
+
+/** Legend sample sizes: a wide one for bands and rain, a square one for the day art rings. */
+private val BAND_SAMPLE_SIZE = DpSize(36.dp, 20.dp)
+private val RING_SAMPLE_SIZE = DpSize(28.dp, 28.dp)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 private val DayArtGrowTransform = BoundsTransform { _, _ -> tween(GROW_MS, easing = LinearOutSlowInEasing) }
@@ -191,9 +200,17 @@ internal fun DayScreen(
             }
             if (wide) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    Column(Modifier.weight(DAY_ART_COLUMN_WEIGHT), verticalArrangement = Arrangement.spacedBy(gap)) {
-                        artPanel(Modifier.fillMaxWidth())
-                        infoPanel(Modifier.fillMaxWidth().weight(1f))
+                    BoxWithConstraints(Modifier.weight(DAY_ART_COLUMN_WEIGHT).fillMaxHeight()) {
+                        // A square as wide as its column, but in a short window it shrinks so the
+                        // summary and legends below keep their height.
+                        val artSide = minOf(maxWidth, maxHeight - DAY_INFO_MIN_HEIGHT - gap).coerceAtLeast(0.dp)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(gap),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            artPanel(Modifier.size(artSide))
+                            infoPanel(Modifier.fillMaxWidth().weight(1f))
+                        }
                     }
                     mapPanel(Modifier.weight(1f - DAY_ART_COLUMN_WEIGHT).fillMaxHeight())
                 }
@@ -236,10 +253,15 @@ private fun DayInfo(
             Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = text)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // The same marks the day art rings use: solid, dashed, and the wide inner ring.
-            LegendItem(stringResource(R.string.legend_turn_signal), text) { line(text, widthFraction = 0.3f) }
-            LegendItem(stringResource(R.string.legend_wiper), text) { line(text, widthFraction = 0.2f, dashed = true) }
-            LegendItem(stringResource(R.string.legend_low_beam), text) { line(text, widthFraction = 0.5f) }
+            // Each sample is a small day art: the ring sits where the day art draws it. Turn signal is
+            // the solid outer ring, wiper the dashed outermost one, low beam the ring at the centre.
+            LegendItem(stringResource(R.string.legend_turn_signal), text, RING_SAMPLE_SIZE) { ring(text, radiusFraction = 0.8f) }
+            LegendItem(stringResource(R.string.legend_wiper), text, RING_SAMPLE_SIZE) {
+                ring(text, radiusFraction = 0.9f, widthFraction = 0.12f, dashed = true)
+            }
+            LegendItem(stringResource(R.string.legend_low_beam), text, RING_SAMPLE_SIZE) {
+                ring(text, radiusFraction = 0.3f, edgeGuide = true)
+            }
         }
     }
 }
@@ -265,22 +287,31 @@ private fun MapGraphLegend(
 private fun LegendItem(
     label: String,
     textColor: Color,
+    sampleSize: DpSize = BAND_SAMPLE_SIZE,
     drawSample: DrawScope.() -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.width(36.dp).height(20.dp)) { drawSample() }
+        Canvas(Modifier.size(sampleSize)) { drawSample() }
         Text(label, style = MaterialTheme.typography.labelMedium, color = textColor)
     }
 }
 
-private fun DrawScope.line(
+/**
+ * A day art pattern ring at [radiusFraction] of the sample's radius, [widthFraction] of it wide.
+ * [edgeGuide] adds a faint circle for the day art's edge, so a ring near the centre reads as inner.
+ */
+private fun DrawScope.ring(
     color: Color,
-    widthFraction: Float,
+    radiusFraction: Float,
+    widthFraction: Float = 0.2f,
     dashed: Boolean = false,
+    edgeGuide: Boolean = false,
 ) {
-    val strokeWidth = size.height * widthFraction
-    val effect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(strokeWidth, strokeWidth)) else null
-    drawLine(color, Offset(0f, center.y), Offset(size.width, center.y), strokeWidth, pathEffect = effect)
+    val sampleRadius = size.minDimension / 2
+    val strokeWidth = sampleRadius * widthFraction
+    val effect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(strokeWidth * 2, strokeWidth * 2)) else null
+    if (edgeGuide) drawCircle(color, sampleRadius * 0.95f, alpha = 0.3f, style = Stroke(sampleRadius * 0.05f))
+    drawCircle(color, sampleRadius * radiusFraction - strokeWidth / 2, style = Stroke(strokeWidth, pathEffect = effect))
 }
 
 private fun DrawScope.band(color: Color) {
