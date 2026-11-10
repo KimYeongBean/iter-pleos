@@ -69,7 +69,7 @@ internal val IterDarkColors =
         onPrimaryArgb = 0xFF131417.toInt(),
     )
 
-private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
+internal fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
     val background = Color(backgroundArgb)
     val card = Color(cardArgb)
     val cardHigh = Color(cardHighArgb)
@@ -82,6 +82,8 @@ private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
         onSurface = text,
         onSurfaceVariant = Color(textSecondaryArgb),
         surfaceVariant = cardHigh,
+        surfaceDim = cardHigh,
+        surfaceBright = card,
         surfaceContainerLowest = card,
         surfaceContainerLow = card,
         surfaceContainer = card,
