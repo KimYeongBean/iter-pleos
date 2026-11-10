@@ -41,7 +41,7 @@ public class DriveSessionRecorder(
      */
     private val manualRequest = AtomicReference<ManualRequest?>(null)
 
-    /** True while a drive session is being recorded (for the "기록 중" display). */
+    /** True while a drive session is being recorded (the manual end applies only then). */
     public val inProgress: StateFlow<Boolean> = inProgressState.asStateFlow()
 
     /**
@@ -96,9 +96,10 @@ public class DriveSessionRecorder(
             current = null
             inProgressState.value = false
         }
-        suspend fun handle(signal: VehicleSignals) {
+        suspend fun recordSignal(signal: VehicleSignals) {
             val request = manualRequest.getAndSet(null)
-            if (autoStartBlocked && signal.gear != Gear.DRIVE) autoStartBlocked = false
+            // No gear signal (null) is not leaving D, so it keeps the block.
+            if (autoStartBlocked && signal.gear != null && signal.gear != Gear.DRIVE) autoStartBlocked = false
             val recording = current
             if (recording == null) {
                 val manualStart = request == ManualRequest.START
@@ -123,7 +124,7 @@ public class DriveSessionRecorder(
         }
         try {
             signals.collect { signal ->
-                handle(signal)
+                recordSignal(signal)
                 drivingState.value = inProgressState.value || (signal.gear != null && signal.gear != Gear.PARK)
             }
             current?.saveNewSamples()
