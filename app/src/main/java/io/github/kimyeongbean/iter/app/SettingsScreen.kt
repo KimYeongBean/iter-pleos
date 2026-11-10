@@ -67,7 +67,8 @@ private const val CHOICES_WEIGHT = 0.48f
 private const val SAMPLE_LINE_SEGMENTS = 48
 
 /**
- * Settings: the theme, in a card per kind (default, plain, advanced), with a live preview. The
+ * Settings: the screen mode, then the theme in a card per kind (default, plain, advanced), with a
+ * live preview. The
  * default theme's card holds the speed colour base (five fixed colours) and the map graph background.
  */
 @Composable
@@ -81,11 +82,25 @@ internal fun SettingsScreen(
         val gap = if (wide) 32.dp else 16.dp
         val choices: @Composable (Modifier) -> Unit = { modifier ->
             Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
+                val cellHeight = if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height
+                SettingCard(R.string.screen_mode_title) {
+                    SegmentedChoice(
+                        choices = ScreenMode.entries,
+                        chosen = settings.screenMode,
+                        label = { it.label },
+                        cellHeight = cellHeight,
+                    ) { onChange(settings.copy(screenMode = it)) }
+                }
                 // The default theme has no tile: picking a colour or a background picks it.
                 SettingCard(R.string.theme_default_title) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         SpeedColorChoice(settings, onChange)
-                        MapBackgroundChoice(settings, onChange, cellHeight = if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height)
+                        SegmentedChoice(
+                            choices = MapBackground.entries,
+                            chosen = settings.background.takeIf { settings.theme == ArtTheme.DEFAULT },
+                            label = { it.label },
+                            cellHeight = cellHeight,
+                        ) { onChange(settings.copy(background = it, theme = ArtTheme.DEFAULT)) }
                     }
                 }
                 SettingCard(R.string.theme_plain_title) {
@@ -291,12 +306,14 @@ private fun SpeedColorChoice(
     }
 }
 
-/** Dark or light, as two cells side by side (Pleos segmented control, 2 cells). */
+/** One of a few [choices], as cells side by side (Pleos segmented control). [chosen] may be none. */
 @Composable
-private fun MapBackgroundChoice(
-    settings: SpeedColorSettings,
-    onChange: (SpeedColorSettings) -> Unit,
+private fun <T> SegmentedChoice(
+    choices: List<T>,
+    chosen: T?,
+    label: (T) -> Int,
     cellHeight: Dp,
+    onChoose: (T) -> Unit,
 ) {
     val cellShape = MaterialTheme.shapes.medium
     Row(
@@ -307,8 +324,8 @@ private fun MapBackgroundChoice(
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        MapBackground.entries.forEach { background ->
-            val selected = settings.theme == ArtTheme.DEFAULT && background == settings.background
+        choices.forEach { choice ->
+            val selected = choice == chosen
             // The chosen cell is the strong one: filled in the primary colour, not just a shade lighter.
             val cellColor by animateColorAsState(
                 if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -326,10 +343,10 @@ private fun MapBackgroundChoice(
                     .heightIn(min = cellHeight)
                     .clip(cellShape)
                     .background(cellColor)
-                    .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(background = background, theme = ArtTheme.DEFAULT)) },
+                    .selectable(selected = selected, role = Role.RadioButton) { onChoose(choice) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(background.label), style = MaterialTheme.typography.bodyMedium, color = cellTextColor)
+                Text(stringResource(label(choice)), style = MaterialTheme.typography.bodyMedium, color = cellTextColor)
             }
         }
     }
