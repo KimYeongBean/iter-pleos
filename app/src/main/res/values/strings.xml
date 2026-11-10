@@ -10,6 +10,10 @@
     <string name="fake_records_inserted">가짜 기록을 넣었어요 (주행 세션 %1$d개)</string>
     <string name="grass_cell_recorded">%1$s 기록 있음</string>
     <string name="grass_cell_empty">%1$s 기록 없음</string>
+    <string name="today">오늘</string>
+    <string name="today_empty">오늘은 아직 기록이 없어요</string>
+    <string name="today_card_open">오늘의 그날 화면 열기</string>
+    <string name="drive_summary">주행 %1$d회 · %2$s – %3$s</string>
     <string name="settings_open">설정</string>
     <string name="settings_title">설정</string>
     <string name="speed_color_base_title">속도색 기본 색</string>

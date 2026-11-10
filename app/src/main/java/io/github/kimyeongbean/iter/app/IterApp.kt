@@ -25,6 +25,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.vehicle.DriveSessionRecorder
@@ -33,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.ZoneId
 
 // Declared from shallow to deep: the screen move slides by this order.
 private enum class Screen { GRASS, DAY, SETTINGS, DEBUG_MENU }
@@ -114,13 +116,19 @@ internal fun IterApp(
             label = "screen",
         ) { target ->
             when (target) {
-                Screen.GRASS ->
+                Screen.GRASS -> {
+                    val today = LocalDate.now()
+                    val todaySummary by produceState<DriveSummary?>(null, today, recordsVersion) {
+                        value = driveSummary(recordStore.dayRecord(today), ZoneId.systemDefault())
+                    }
                     GrassScreen(
-                        today = LocalDate.now(),
+                        today = today,
                         recordedDates = recordedDates,
                         dayArt = { dayArts[it] },
                         loadDayArt = loadDayArt,
+                        todaySummary = todaySummary,
                         background = background,
+                        accent = Color(speedColorBaseArgb),
                         gridState = grassGridState,
                         playIntro = !grassIntroPlayed,
                         onIntroFinished = { grassIntroPlayed = true },
@@ -136,6 +144,7 @@ internal fun IterApp(
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@AnimatedContent,
                     )
+                }
 
                 Screen.DAY -> {
                     val date = openDate ?: return@AnimatedContent
