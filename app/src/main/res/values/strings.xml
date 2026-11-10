@@ -27,4 +27,7 @@
     <string name="day_art_empty">그릴 주행 데이터가 없어요</string>
     <string name="map_graph_description">%1$s 맵 그래프</string>
     <string name="map_graph_no_route">경로 정보 없음</string>
+    <string name="recording">기록 중</string>
+    <string name="start_recording">기록 시작</string>
+    <string name="end_recording">기록 끝</string>
 </resources>

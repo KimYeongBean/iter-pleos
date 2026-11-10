@@ -13,7 +13,7 @@
 | 샘플 | 주행 세션 안에서 일정 간격으로 찍은 그 순간의 차량 신호 값 묶음 | `Sample` | 항목은 [docs/interfaces.md](docs/interfaces.md) |
 | 차량 신호 흐름 | `:vehicle` 안에서 1초마다 그 순간의 샘플과 기어를 내보내는 입구. 실제는 Pleos SDK 어댑터, 테스트는 가짜 신호 순서 | `Flow<VehicleSignals>` | `:vehicle` 내부. 항목 하나(`VehicleSignals`)가 한 순간의 값. 시각은 샘플 시각을 따름 |
 | 기록 저장소 | 주행 세션을 기기 안에 저장하고 날짜별로 꺼내는 곳. 실제 기록과 가짜 주행 데이터를 같은 방식으로 다룸 | `RecordStore` | `:vehicle` 출력. [ADR 0001](docs/adr/0001-fake-drive-data-via-record-store.md) |
-| 주행 세션 기록기 | 차량 신호 흐름으로 주행 세션의 시작·끝을 감지해 기록 저장소에 저장하는 곳. 진행 중 여부와 수동 시작·끝 입구를 가짐 | `DriveSessionRecorder` | `:vehicle` 출력. [docs/interfaces.md](docs/interfaces.md) 1번 |
+| 주행 세션 기록기 | 차량 신호 흐름으로 주행 세션의 시작·끝을 감지해 기록 저장소에 저장하는 곳. 진행 중 여부와 수동 시작·끝 입구를 가짐 | `DriveSessionRecorder` (진행 중 `inProgress`, 수동 시작·끝 `requestStart()`·`requestEnd()`) | `:vehicle` 출력. [docs/interfaces.md](docs/interfaces.md) 1번 |
 | 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 세 종류: 정상 `normal` / 급가속·급제동 `harsh` / 신호 일부 누락 `missingSignals`, 날짜마다 한 종류씩 섞은 묶음 `allKinds`. 피할 말: 더미, 목업 데이터 |
 | 맵 그래프 | 주행 경로를 지도 배경 없이 레이싱 트랙처럼 선으로 그린 화면 요소 | `MapGraph` (경로 `MapRoute`) | 바탕은 어두운/밝은 중 사용자가 고름 (바탕: `MapBackground`). 상세 그래프는 별개 화면 |
 | 추정 경로 | 위치 없이 속도와 조향각으로 계산한 주행 경로 | TBD | 최종 기획의 맵 그래프 경로. 첫 제출은 위치가 있을 때만 그림 ([ADR 0002](docs/adr/0002-map-graph-estimated-route.md)) |
@@ -25,6 +25,7 @@
 | 그림 데이터 | 하루 그림을 그리기 위한 도형 목록. 그림 자체가 아니라 그리는 재료 | `DayArtData` (도형 `DayArtShape`) | |
 | 무늬 | 하루 그림에서 깜빡이·와이퍼·전조등을 켠 구간에 얹는 표시. 신호가 없으면(null) 무늬 없음 | `DayArtPattern` | 출처: 스펙 #9 '그림 로직' |
 | 그날 화면 | 잔디 칸을 누르면 열리는 그 날짜의 화면. 하루 그림과 맵 그래프를 함께 보여 줌 | `DayScreen` | 출처: 스펙 #9 '화면'(칸을 누르면 그날 화면), 사용자 스토리 29 |
+| 기록 중 | 주행 세션이 진행 중일 때 다른 화면 대신 보이는 정지 화면. 움직임 없음, 수동 끝 버튼만 있음 | `RecordingScreen` | 출처: 스펙 #9 '화면'·'움직임', 사용자 스토리 10·43. 맵 그래프·하루 그림·잔디는 이때 열리지 않음 |
 | 잔디 | 하루 기록을 날짜별 격자 칸으로 보여주는 기록 화면 | `GrassScreen` | 칸 하나 = 하루 기록, 칸에는 하루 그림 축소본. 기록 없는 날은 빈 칸. 본인 기록만 보여 줌 |
 | 작업 트랙 | 저장소 코드를 나누는 작업 단위. 차량 데이터 / 화면 / 그림 로직 / 통합·공통 | — | 사람이 아니라 일의 구역. 담당자 배정은 팀이 따로 정함. [docs/ownership.md](docs/ownership.md) |
 | AAOS / 차량 SW | Android Automotive OS와 그 위에서 도는 차량용 소프트웨어 | — | Pleos Vehicle SDK로 차량 데이터를 읽음 |

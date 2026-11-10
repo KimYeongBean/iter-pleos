@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
                 Surface {
                     IterApp(
                         recordStore = app.recordStore,
+                        recorder = app.driveSessionRecorder,
                         speedColorSettingsStore = app.speedColorSettingsStore,
                         appScope = app.appScope,
                         showDebugMenu = BuildConfig.DEBUG,

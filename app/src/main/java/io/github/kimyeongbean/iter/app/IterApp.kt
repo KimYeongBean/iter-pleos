@@ -17,6 +17,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import io.github.kimyeongbean.iter.art.DayArtData
+import io.github.kimyeongbean.iter.vehicle.DriveSessionRecorder
 import io.github.kimyeongbean.iter.vehicle.RecordStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,11 +40,15 @@ private enum class Screen { GRASS, DAY, SETTINGS, DEBUG_MENU }
 /** Screen move: fade + small slide, 300 ms (Notion 디자인 '애니메이션·전환 기준'). */
 private const val SCREEN_MOVE_MS = 300
 
-/** [appScope] runs work that must outlive screens and the activity. */
+/**
+ * While [recorder] has a drive session in progress, only the still "기록 중" screen shows; the record
+ * screens open again once it ends. [appScope] runs work that must outlive screens and the activity.
+ */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun IterApp(
     recordStore: RecordStore,
+    recorder: DriveSessionRecorder,
     speedColorSettingsStore: SpeedColorSettingsStore,
     appScope: CoroutineScope,
     showDebugMenu: Boolean,
@@ -81,6 +87,13 @@ internal fun IterApp(
             }
         }
 
+    val recording by recorder.inProgress.collectAsState()
+    if (recording) {
+        // Swapped in without a transition: leaving the record screens stops their animations at once.
+        RecordingScreen(onEnd = recorder::requestEnd)
+        return
+    }
+
     BackHandler(enabled = screen != Screen.GRASS) { screen = Screen.GRASS }
 
     SharedTransitionLayout {
@@ -116,6 +129,7 @@ internal fun IterApp(
                             openDate = it
                             screen = Screen.DAY
                         },
+                        onStartRecording = recorder::requestStart,
                         onOpenSettings = { screen = Screen.SETTINGS },
                         onOpenDebugMenu = if (showDebugMenu) ({ screen = Screen.DEBUG_MENU }) else null,
                         sharedTransitionScope = this@SharedTransitionLayout,
