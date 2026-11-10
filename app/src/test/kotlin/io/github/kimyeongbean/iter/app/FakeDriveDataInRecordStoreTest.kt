@@ -26,7 +26,7 @@ class FakeDriveDataInRecordStoreTest {
         val expectedByDate =
             fake.groupBy { Instant.ofEpochMilli(it.startEpochMs).atZone(zone).toLocalDate() }
 
-        RecordStore.open(context, zone).use { store ->
+        RecordStore.open(context) { zone }.use { store ->
             fake.forEach { store.save(it) }
 
             assertEquals(expectedByDate.keys.sorted(), store.recordedDates().first())
@@ -40,7 +40,7 @@ class FakeDriveDataInRecordStoreTest {
     fun `saving fake drive data twice does not duplicate sessions`() = runBlocking {
         val fake = FakeDriveData.allKinds(LocalDate.of(2026, 11, 9), dayCount = 7, zone = zone)
 
-        RecordStore.open(context, zone).use { store ->
+        RecordStore.open(context) { zone }.use { store ->
             repeat(2) { fake.forEach { store.save(it) } }
 
             val stored = store.recordedDates().first().flatMap { store.dayRecord(it) }
