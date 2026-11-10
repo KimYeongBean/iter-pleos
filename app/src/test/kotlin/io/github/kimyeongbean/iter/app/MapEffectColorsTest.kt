@@ -13,7 +13,7 @@ class MapEffectColorsTest {
             mapOf(
                 "turn signal band" to colors.turnSignalBandArgb,
                 "low beam band" to colors.lowBeamArgb,
-                "rain at its most opaque" to colors.rainArgb,
+                "rain at its most opaque" to compositeArgb(colors.rainArgb, RAIN_ALPHA, background.argb),
             ).forEach { (effect, argb) ->
                 val ratio = contrast(argb, background.argb)
                 assertTrue("$effect on $background: $ratio", ratio >= 1.5)

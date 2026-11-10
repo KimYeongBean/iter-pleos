@@ -2,15 +2,12 @@ package io.github.kimyeongbean.iter.app
 
 import kotlin.math.roundToInt
 
-/** Turn signal band: the background's text colour at this opacity. */
-private const val TURN_SIGNAL_BAND_ALPHA = 0.32f
-
-/** Rain streaks at their most opaque: the background's text colour at this opacity. */
-private const val RAIN_ALPHA = 0.7f
+/** Rain streaks at their most opaque: [MapEffectColors.rainArgb] at this opacity. */
+internal const val RAIN_ALPHA = 0.7f
 
 /**
- * Map graph effect colours on one background, as opaque ARGB with no Compose types, so tests can
- * check their contrast (#56). [rainArgb] is the rain at its most opaque; it fades from there.
+ * Map graph effect colours on one background, as ARGB with no Compose types, so tests can check
+ * their contrast (#56). The bands are opaque; [rainArgb] is drawn see-through, at most [RAIN_ALPHA].
  */
 internal class MapEffectColors(
     val turnSignalBandArgb: Int,
@@ -19,20 +16,28 @@ internal class MapEffectColors(
 )
 
 /**
- * Low beam on the light background is a darker shade. On the dark background a darker colour
- * cannot stand out (even black is under 1.5:1), so it is a night blue band lighter than it.
+ * The turn signal band is the text colour see-through over the background; the light background
+ * needs it a little stronger to reach 1.5:1. Low beam on the light background is a darker shade.
+ * On the dark background a darker colour cannot stand out (even black is under 1.5:1), so it is a
+ * night blue band lighter than it.
  */
 internal val MapBackground.mapEffectColors: MapEffectColors
     get() =
-        MapEffectColors(
-            turnSignalBandArgb = compositeArgb(textArgb, TURN_SIGNAL_BAND_ALPHA, argb),
-            lowBeamArgb =
-            when (this) {
-                MapBackground.DARK -> 0xFF30406A.toInt()
-                MapBackground.LIGHT -> 0xFFB8BECB.toInt()
-            },
-            rainArgb = compositeArgb(textArgb, RAIN_ALPHA, argb),
-        )
+        when (this) {
+            MapBackground.DARK ->
+                MapEffectColors(
+                    turnSignalBandArgb = compositeArgb(textArgb, 0.25f, argb),
+                    lowBeamArgb = 0xFF30406A.toInt(),
+                    rainArgb = textArgb,
+                )
+
+            MapBackground.LIGHT ->
+                MapEffectColors(
+                    turnSignalBandArgb = compositeArgb(textArgb, 0.32f, argb),
+                    lowBeamArgb = 0xFFB8BECB.toInt(),
+                    rainArgb = textArgb,
+                )
+        }
 
 /** [foregroundArgb] at [alpha] over the opaque [backgroundArgb], as an opaque colour. */
 internal fun compositeArgb(

@@ -94,7 +94,7 @@ internal fun MapGraph(
             if (progress < drop.timePosition) return@forEach
             val fall = rainFall(drop, phase)
             val top = toCanvasXY(drop.x, drop.y) + Offset(0f, (fall - 0.5f) * fallHeight)
-            drawLine(rainColor.copy(alpha = rainAlpha(fall)), top, top + streak, streakWidth, StrokeCap.Round)
+            drawLine(rainColor.copy(alpha = RAIN_ALPHA * rainAlpha(fall)), top, top + streak, streakWidth, StrokeCap.Round)
         }
         route.strokes.forEach { stroke ->
             if (stroke.size == 1) {
