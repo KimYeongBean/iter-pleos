@@ -56,7 +56,8 @@ private const val CELL_FADE_MS = 200
 
 /**
  * Grass: one cell per day. A day with a day record shows its day art thumbnail on [background];
- * tapping it calls [onOpenDay]. [recordedDates] is null while loading.
+ * tapping it calls [onOpenDay]. [recordedDates] is null while loading. [onStartRecording] asks for a
+ * manual drive session start (for cars without a gear signal).
  * [onOpenDebugMenu] is null when the debug menu is hidden.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -71,6 +72,7 @@ internal fun GrassScreen(
     playIntro: Boolean,
     onIntroFinished: () -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onStartRecording: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDebugMenu: (() -> Unit)?,
     sharedTransitionScope: SharedTransitionScope,
@@ -83,6 +85,7 @@ internal fun GrassScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.weight(1f),
             )
+            TextButton(onClick = onStartRecording) { Text(stringResource(R.string.start_recording)) }
             TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.settings_open)) }
             if (onOpenDebugMenu != null) {
                 TextButton(onClick = onOpenDebugMenu) { Text(stringResource(R.string.debug_menu_open)) }

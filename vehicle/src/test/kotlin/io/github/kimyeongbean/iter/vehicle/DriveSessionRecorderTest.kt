@@ -231,6 +231,121 @@ class DriveSessionRecorderTest {
         assertEquals(inProgress.copy(endEpochMs = lastSaved), store.dayRecord(nov9).single())
     }
 
+    /** The session a manual start and end around [played] should save: all of [played]. */
+    private fun manualSession(played: List<VehicleSignals>) = DriveSession(
+        startEpochMs = played.first().sample.timeEpochMs,
+        endEpochMs = played.last().sample.timeEpochMs,
+        source = DriveSessionSource.VEHICLE,
+        samples = played.map { it.sample },
+    )
+
+    @Test
+    fun `manual start and end record a drive session without a gear signal`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val before = signals(start, Stretch(null, 20.0, 5))
+        val during = signals(start + 5 * SAMPLE_INTERVAL_MS, Stretch(null, 30.0, 20))
+        val after = signals(start + 25 * SAMPLE_INTERVAL_MS, Stretch(null, 20.0, 5))
+
+        recorder.record(
+            flow {
+                emitAll(before.asFlow())
+                recorder.requestStart()
+                emitAll(during.asFlow())
+                recorder.requestEnd()
+                emitAll(after.asFlow())
+            },
+        )
+
+        assertEquals(listOf(manualSession(during)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `a manually started drive session is not ended by parking`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val during = signals(start, parked(endWaitS * 2), drive(10), parked(endWaitS + 1))
+
+        recorder.record(
+            flow {
+                recorder.requestStart()
+                emitAll(during.asFlow())
+                recorder.requestEnd()
+                emitAll(signals(start + during.size * SAMPLE_INTERVAL_MS, parked(3)).asFlow())
+            },
+        )
+
+        assertEquals(listOf(manualSession(during)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `manual end in gear P ends a drive session at once without the parked wait`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val played = signals(start, drive(20), parked(5))
+
+        recorder.record(
+            flow {
+                emitAll(played.asFlow())
+                recorder.requestEnd()
+                emitAll(signals(start + 25 * SAMPLE_INTERVAL_MS, parked(endWaitS + 1)).asFlow())
+            },
+        )
+
+        assertEquals(listOf(manualSession(played)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `manual end while the gear is D is dropped and the drive session goes on`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val beforeEnd = signals(start, drive(20))
+        val afterEnd = signals(start + 20 * SAMPLE_INTERVAL_MS, drive(30), parked(endWaitS + 1))
+
+        recorder.record(
+            flow {
+                emitAll(beforeEnd.asFlow())
+                recorder.requestEnd()
+                emitAll(afterEnd.asFlow())
+            },
+        )
+
+        val played = beforeEnd + afterEnd
+        assertEquals(listOf(expectedSession(played, start + 50 * SAMPLE_INTERVAL_MS)), store.dayRecord(nov9))
+    }
+
+    @Test
+    fun `a start request made while not recording is dropped`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        recorder.requestStart()
+
+        recorder.record(signals(at(nov9, 8), parked(10)).asFlow())
+
+        assertEquals(emptyList<LocalDate>(), store.recordedDates().first())
+    }
+
+    @Test
+    fun `an end request with no drive session in progress is ignored`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val played = signals(start, parked(3), drive(10), parked(endWaitS + 1))
+
+        recorder.record(
+            flow {
+                recorder.requestEnd()
+                emitAll(played.asFlow())
+            },
+        )
+
+        assertEquals(listOf(expectedSession(played, start + 13 * SAMPLE_INTERVAL_MS)), store.dayRecord(nov9))
+    }
+
     @Test
     fun `in progress is true from gear D until the drive session ends`() = runBlocking {
         val store = openStore()
