@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
@@ -128,6 +129,26 @@ internal fun scatter(
     h = (h xor (h ushr 13)) * 1_274_126_177
     h = h xor (h ushr 16)
     return (h and 0xFFFFFF) / 16_777_216f
+}
+
+/**
+ * Calls [mark] for each spot of a backdrop pattern: one per square of [cellDp] a side on average,
+ * scattered evenly and always at the same places.
+ */
+internal inline fun DrawScope.forEachBackdropSpot(
+    cellDp: Float,
+    mark: (index: Int, at: Offset) -> Unit,
+) {
+    val cell = cellDp * density
+    val count = (size.width * size.height / (cell * cell)).toInt()
+    repeat(count) { i -> mark(i, Offset(scatter(i, 1) * size.width, scatter(i, 2) * size.height)) }
+}
+
+/** Calls [action] for each point of the stroke where the turn signal comes on. */
+internal inline fun List<RoutePoint>.forEachTurnSignalStart(action: (index: Int, point: RoutePoint) -> Unit) {
+    forEachIndexed { i, point ->
+        if (point.turnSignalOn && (i == 0 || !this[i - 1].turnSignalOn)) action(i, point)
+    }
 }
 
 /**
