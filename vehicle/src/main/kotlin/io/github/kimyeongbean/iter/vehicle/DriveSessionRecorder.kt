@@ -22,13 +22,15 @@ internal const val IN_PROGRESS_SAVE_EVERY_SAMPLES = 10
  * Records drive sessions from the vehicle signal flow into [store].
  * A drive session starts when the gear is D and ends once the gear is P at 0 km/h for
  * [DRIVE_SESSION_END_WAIT_MS]; its end time is when that stop began, and samples after it are dropped.
- * Manual start and end requests ([requestStart], [requestEnd]) win over this detection.
+ * Manual start and end requests ([requestStart], [requestEnd]) win over this detection. A manual end
+ * in gear D blocks the next automatic start until the gear leaves D.
  * All timing comes from the sample times, not the wall clock.
  */
 public class DriveSessionRecorder(
     private val store: RecordStore,
 ) {
     private val inProgressState = MutableStateFlow(false)
+    private val drivingState = MutableStateFlow(false)
 
     /** Only one [record] at a time: a second one would close the session the first is writing. */
     private val recordLock = Mutex()
@@ -43,6 +45,12 @@ public class DriveSessionRecorder(
     public val inProgress: StateFlow<Boolean> = inProgressState.asStateFlow()
 
     /**
+     * True while the car may be moving: a drive session is in progress or the gear is not P. No gear
+     * signal (null) is not driving. The record screens stay closed while this is true.
+     */
+    public val driving: StateFlow<Boolean> = drivingState.asStateFlow()
+
+    /**
      * Starts a drive session at the next vehicle signal, whatever the gear (for cars without a gear
      * signal). Only [requestEnd] ends it; parking does not. Ignored while a drive session is in progress.
      */
@@ -51,9 +59,9 @@ public class DriveSessionRecorder(
     }
 
     /**
-     * Ends the drive session in progress at its last sample, without the parked wait. Honoured only
-     * when the gear is P or unknown (no gear signal): while the car may be moving the record screens
-     * must stay closed, so the request is dropped. Ignored when no drive session is in progress.
+     * Ends the drive session in progress at its last sample, without the parked wait, in any gear.
+     * Ended in gear D, no drive session starts automatically until the gear leaves D. Ignored when no
+     * drive session is in progress.
      */
     public fun requestEnd() {
         manualRequest.set(ManualRequest.END)
@@ -78,6 +86,7 @@ public class DriveSessionRecorder(
         manualRequest.set(null)
         store.closeUnfinishedSessions()
         var current: Recording? = null
+        var autoStartBlocked = false
 
         suspend fun finish(
             recording: Recording,
@@ -87,33 +96,40 @@ public class DriveSessionRecorder(
             current = null
             inProgressState.value = false
         }
+        suspend fun handle(signal: VehicleSignals) {
+            val request = manualRequest.getAndSet(null)
+            if (autoStartBlocked && signal.gear != Gear.DRIVE) autoStartBlocked = false
+            val recording = current
+            if (recording == null) {
+                val manualStart = request == ManualRequest.START
+                if (manualStart || (signal.gear == Gear.DRIVE && !autoStartBlocked)) {
+                    // Save the first sample at once, so even a very short run leaves the session.
+                    current = Recording(signal.sample, manualStart).also { it.saveNewSamples() }
+                    inProgressState.value = true
+                }
+                return
+            }
+            if (request == ManualRequest.END) {
+                finish(recording, recording.lastSampleEpochMs)
+                autoStartBlocked = signal.gear == Gear.DRIVE
+                return
+            }
+            val endEpochMs = recording.add(signal)
+            if (endEpochMs != null) {
+                finish(recording, endEpochMs)
+            } else if (recording.unsavedCount >= IN_PROGRESS_SAVE_EVERY_SAMPLES) {
+                recording.saveNewSamples()
+            }
+        }
         try {
             signals.collect { signal ->
-                val request = manualRequest.getAndSet(null)
-                val recording = current
-                if (recording == null) {
-                    val manualStart = request == ManualRequest.START
-                    if (manualStart || signal.gear == Gear.DRIVE) {
-                        // Save the first sample at once, so even a very short run leaves the session.
-                        current = Recording(signal.sample, manualStart).also { it.saveNewSamples() }
-                        inProgressState.value = true
-                    }
-                    return@collect
-                }
-                if (request == ManualRequest.END && (signal.gear == null || signal.gear == Gear.PARK)) {
-                    finish(recording, recording.lastSampleEpochMs)
-                    return@collect
-                }
-                val endEpochMs = recording.add(signal)
-                if (endEpochMs != null) {
-                    finish(recording, endEpochMs)
-                } else if (recording.unsavedCount >= IN_PROGRESS_SAVE_EVERY_SAMPLES) {
-                    recording.saveNewSamples()
-                }
+                handle(signal)
+                drivingState.value = inProgressState.value || (signal.gear != null && signal.gear != Gear.PARK)
             }
             current?.saveNewSamples()
         } finally {
             inProgressState.value = false
+            drivingState.value = false
         }
     }
 

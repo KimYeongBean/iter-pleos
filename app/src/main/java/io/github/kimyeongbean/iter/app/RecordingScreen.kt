@@ -16,22 +16,23 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * The only screen while a drive session is being recorded: a still "기록 중" with a manual end
- * button, which the recorder honours only in gear P (or with no gear signal). Nothing on it moves,
- * so it does not draw the driver's eye.
+ * The only screen while driving (a drive session in progress or the gear not P): a still "기록 중"
+ * with a manual end button when [onEnd] is given (a drive session is in progress). Nothing on it
+ * moves, so it does not draw the driver's eye.
  */
 @Composable
-internal fun RecordingScreen(onEnd: () -> Unit) {
+internal fun RecordingScreen(onEnd: (() -> Unit)?) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(stringResource(R.string.recording), style = MaterialTheme.typography.displayMedium)
-        // Large target: pressed at a glance from the driver's seat.
-        Button(onClick = onEnd, modifier = Modifier.widthIn(min = 200.dp).heightIn(min = 72.dp)) {
-            Text(stringResource(R.string.end_recording), style = MaterialTheme.typography.titleLarge)
+        if (onEnd != null) {
+            // Large target: pressed at a glance from the driver's seat.
+            Button(onClick = onEnd, modifier = Modifier.widthIn(min = 200.dp).heightIn(min = 72.dp)) {
+                Text(stringResource(R.string.end_recording), style = MaterialTheme.typography.titleLarge)
+            }
         }
-        Text(stringResource(R.string.end_recording_when_parked), style = MaterialTheme.typography.bodyLarge)
     }
 }
