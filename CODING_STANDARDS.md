@@ -15,3 +15,4 @@
 4. **단위가 보이게.** 속도(km/h), 시각(epoch ms), 각도(도)처럼 단위가 있는 값은 이름이나 타입에 단위가 드러나게 합니다.
 5. **그림 로직은 결정적.** `:art`는 같은 입력이면 같은 그림 데이터를 냅니다. 현재 시각·난수·기기 설정을 직접 읽지 않고 입력으로 받습니다.
 6. **모듈 밖 공개는 계약에 있는 것만.** `:art`·`:vehicle`에서 `public`은 [docs/interfaces.md](docs/interfaces.md)의 출력에 있는 것에만 붙입니다. 어댑터 입력 타입, 저장 구조 같은 모듈 안 세부는 `internal`입니다. 새로 공개해야 하면 interfaces.md 합의가 먼저입니다.
+7. **공유 규칙은 `:model` 것을 씀.** 하루 기록 주행 순서는 `inDriveOrder()`, 깜빡이 켜짐 판정은 `TurnSignal?.isOn`을 씁니다 ([docs/interfaces.md](docs/interfaces.md) 0번 공유 규칙, #47). 하루 그림과 맵 그래프가 같은 순서·같은 판정을 쓰게 하려는 규칙입니다. 새 공유 규칙이 필요하면 interfaces.md 합의가 먼저입니다.
