@@ -6,7 +6,7 @@ Iter는 Pleos Vehicle SDK를 활용한 Android Automotive OS(AAOS) 앱입니다.
 현대자동차 Pleos 앱 개발 공모전(대학생 부문) 출품작입니다.
 
 ## 실행 방법
-Pleos Connect Emulator를 켠 뒤 release APK를 설치하고 실행합니다. `adb`가 PATH에 있어야 합니다.
+Pleos Connect Emulator를 켠 뒤 release APK([APK 위치](#apk-위치))를 설치하고 실행합니다. `adb`가 PATH에 있어야 합니다.
 ```bash
 adb install apk/팀명_Iter_release.apk
 adb shell am start --user 10 -n io.github.kimyeongbean.iter/.app.MainActivity
@@ -29,7 +29,7 @@ adb shell am start --user 10 -n io.github.kimyeongbean.iter/.app.MainActivity
 ```
 release APK를 서명하려면 저장소 맨 위에 `keystore.properties`를 둡니다. 이 파일과 키스토어는 커밋하지 않습니다(`.gitignore`). 파일이 없으면 서명 없는 APK(`app-release-unsigned.apk`)가 나옵니다.
 ```properties
-storeFile=키스토어 파일 경로
+storeFile=키스토어 파일 경로 (절대 경로, 또는 저장소 맨 위 기준 상대 경로)
 storePassword=…
 keyAlias=…
 keyPassword=…

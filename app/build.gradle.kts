@@ -11,8 +11,8 @@ plugins {
 // Without it (CI, other PCs) the release APK is built unsigned.
 val keystoreProperties =
     Properties().apply {
-        val file = rootProject.file("keystore.properties")
-        if (file.exists()) file.inputStream().use { load(it) }
+        val propertiesFile = rootProject.file("keystore.properties")
+        if (propertiesFile.exists()) propertiesFile.inputStream().use { load(it) }
     }
 
 android {
@@ -30,7 +30,7 @@ android {
     signingConfigs {
         if (keystoreProperties.isNotEmpty()) {
             create("release") {
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
