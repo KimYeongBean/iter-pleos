@@ -25,4 +25,28 @@ class SpeedColorSettingsStoreTest {
         // A new instance reads from disk, like the app after a restart.
         assertEquals(chosen, SpeedColorSettingsStore(context).load())
     }
+
+    @Test
+    fun `settings saved before themes existed open in the default theme with their colours kept`() {
+        context
+            .getSharedPreferences("speed_color_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putString("base", SpeedColorBase.PINK.name)
+            .putString("background", MapBackground.LIGHT.name)
+            .commit()
+
+        assertEquals(
+            SpeedColorSettings(SpeedColorBase.PINK, MapBackground.LIGHT, ArtTheme.DEFAULT),
+            SpeedColorSettingsStore(context).load(),
+        )
+    }
+
+    @Test
+    fun `chosen theme survives a new store instance`() {
+        val chosen = SpeedColorSettings(theme = ArtTheme.PAPER)
+
+        SpeedColorSettingsStore(context).save(chosen)
+
+        assertEquals(chosen, SpeedColorSettingsStore(context).load())
+    }
 }

@@ -58,7 +58,10 @@ private const val CHOICES_WEIGHT = 0.48f
 /** Segments of the preview's sample line; its speed rises and falls twice along the way. */
 private const val SAMPLE_LINE_SEGMENTS = 48
 
-/** Settings: speed colour base (five fixed colours) and map graph background, with a live preview. */
+/**
+ * Settings: the theme, and for the default theme the speed colour base (five fixed colours) and the
+ * map graph background, with a live preview.
+ */
 @Composable
 internal fun SettingsScreen(
     settings: SpeedColorSettings,
@@ -70,11 +73,17 @@ internal fun SettingsScreen(
         val gap = if (wide) 32.dp else 16.dp
         val choices: @Composable (Modifier) -> Unit = { modifier ->
             Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
-                SettingCard(R.string.speed_color_base_title, R.string.speed_color_base_hint) {
-                    SpeedColorChoice(settings, onChange)
+                SettingCard(R.string.theme_title, R.string.theme_hint) {
+                    ThemeChoice(settings, onChange)
                 }
-                SettingCard(R.string.map_background_title, R.string.map_background_hint) {
-                    MapBackgroundChoice(settings, onChange, cellHeight = if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height)
+                // The other themes fix both colours.
+                if (settings.theme == ArtTheme.DEFAULT) {
+                    SettingCard(R.string.speed_color_base_title, R.string.speed_color_base_hint) {
+                        SpeedColorChoice(settings, onChange)
+                    }
+                    SettingCard(R.string.map_background_title, R.string.map_background_hint) {
+                        MapBackgroundChoice(settings, onChange, cellHeight = if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height)
+                    }
                 }
             }
         }
@@ -126,6 +135,47 @@ private fun SettingCard(
                 )
             }
             choice()
+        }
+    }
+}
+
+/** One tile per theme, each on its own panel ground with its line colour as the swatch. */
+@Composable
+private fun ThemeChoice(
+    settings: SpeedColorSettings,
+    onChange: (SpeedColorSettings) -> Unit,
+) {
+    val tileShape = MaterialTheme.shapes.large
+    val selectedOutline = MaterialTheme.colorScheme.primary
+    val outline = MaterialTheme.colorScheme.outline
+    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ArtTheme.entries.forEach { theme ->
+            val selected = theme == settings.theme
+            val panel = theme.panel(settings.base, settings.background)
+            val tileColor by animateColorAsState(Color(panel.argb), tween(COLOR_CHANGE_MS), label = "themeTile")
+            val textColor by animateColorAsState(Color(panel.textArgb), tween(COLOR_CHANGE_MS), label = "themeTileText")
+            val swatch by animateColorAsState(Color(panel.speedColorBaseArgb), tween(COLOR_CHANGE_MS), label = "themeSwatch")
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(tileShape)
+                    .background(tileColor)
+                    // The outline keeps a tile apart from a card of nearly the same colour.
+                    .border(if (selected) 3.dp else 1.dp, if (selected) selectedOutline else outline, tileShape)
+                    .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(theme = theme)) }
+                    .padding(vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.size(64.dp).background(swatch, CircleShape))
+                Text(
+                    stringResource(theme.label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -212,7 +262,7 @@ private fun MapBackgroundChoice(
 }
 
 /**
- * What the choices look like together: a sample line in the speed colour on the chosen background,
+ * What the choices look like together: a sample line in the speed colour on the theme's panel,
  * over the 0 to 120 km/h strip. Crossfades on change.
  */
 @Composable
@@ -226,10 +276,11 @@ private fun SpeedColorPreview(
         label = "preview",
         modifier = modifier.clip(MaterialTheme.shapes.extraLarge),
     ) { shown ->
-        val baseArgb = shown.base.argbOn(shown.background)
-        val textColor = Color(shown.background.textArgb)
+        val panel = shown.panel
+        val baseArgb = panel.speedColorBaseArgb
+        val textColor = Color(panel.textArgb)
         Column(
-            Modifier.fillMaxSize().background(Color(shown.background.argb)).padding(32.dp),
+            Modifier.fillMaxSize().background(Color(panel.argb)).padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Text(stringResource(R.string.speed_color_preview_title), style = MaterialTheme.typography.labelLarge, color = textColor)
@@ -245,7 +296,7 @@ private fun SpeedColorPreview(
                     val speedKmh = SPEED_COLOR_MAX_KMH * (0.5 - 0.5 * cos(4 * PI * step / SAMPLE_LINE_SEGMENTS))
                     // Opaque, so the round caps of neighbouring segments do not darken where they overlap.
                     val alpha = (SpeedColor.argb(baseArgb, speedKmh) ushr 24) / 255f
-                    val color = Color(compositeArgb(baseArgb, alpha, shown.background.argb))
+                    val color = Color(compositeArgb(baseArgb, alpha, panel.argb))
                     drawLine(color, point(step), point(step + 1), strokeWidth, StrokeCap.Round)
                 }
             }

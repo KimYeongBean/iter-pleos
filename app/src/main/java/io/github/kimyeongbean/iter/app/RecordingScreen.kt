@@ -1,7 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,17 +21,16 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The only screen while driving (a drive session in progress or the gear not P): a still mark in
- * the speed colour [speedColorBase], "기록 중" large enough to read at a glance, one line saying
+ * the theme's line colour [markArgb], "기록 중" large enough to read at a glance, one line saying
  * when the records open again, and a manual end button when [onEnd] is given (a drive session is
  * in progress). Nothing on it moves, so it does not draw the driver's eye.
  */
 @Composable
 internal fun RecordingScreen(
-    speedColorBase: SpeedColorBase,
+    markArgb: Int,
     onEnd: (() -> Unit)?,
 ) {
-    // The mark sits on the app background, so take the colour variant made for that brightness.
-    val markColor = Color(speedColorBase.argbOn(if (isSystemInDarkTheme()) MapBackground.DARK else MapBackground.LIGHT))
+    val markColor = Color(markArgb)
     Column(
         Modifier.fillMaxSize().padding(48.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterVertically),

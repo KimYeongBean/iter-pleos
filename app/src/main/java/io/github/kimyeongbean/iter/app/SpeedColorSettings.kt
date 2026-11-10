@@ -40,11 +40,18 @@ internal enum class SpeedColorBase(
     }
 }
 
-/** What the user picked in settings. */
+/** What the user picked in settings. [base] and [background] count only for [ArtTheme.DEFAULT]. */
 internal data class SpeedColorSettings(
     val base: SpeedColorBase = SpeedColorBase.AMBER,
     val background: MapBackground = MapBackground.DARK,
-)
+    val theme: ArtTheme = ArtTheme.DEFAULT,
+) {
+    /** What the art panels draw with. */
+    val panel: ThemePanel get() = theme.panel(base, background)
+
+    /** The line colour for a mark on the app background, dark or light as the system is. */
+    fun accentArgb(dark: Boolean): Int = theme.accentArgb(base, dark)
+}
 
 /** Keeps [SpeedColorSettings] on the device so they survive restarts. */
 internal class SpeedColorSettingsStore(
@@ -57,6 +64,7 @@ internal class SpeedColorSettingsStore(
         return SpeedColorSettings(
             base = enumOrNull<SpeedColorBase>(prefs.getString(KEY_BASE, null)) ?: defaults.base,
             background = enumOrNull<MapBackground>(prefs.getString(KEY_BACKGROUND, null)) ?: defaults.background,
+            theme = enumOrNull<ArtTheme>(prefs.getString(KEY_THEME, null)) ?: defaults.theme,
         )
     }
 
@@ -65,6 +73,7 @@ internal class SpeedColorSettingsStore(
             .edit()
             .putString(KEY_BASE, settings.base.name)
             .putString(KEY_BACKGROUND, settings.background.name)
+            .putString(KEY_THEME, settings.theme.name)
             .apply()
     }
 
@@ -72,6 +81,7 @@ internal class SpeedColorSettingsStore(
         const val PREFS_NAME = "speed_color_settings"
         const val KEY_BASE = "base"
         const val KEY_BACKGROUND = "background"
+        const val KEY_THEME = "theme"
     }
 }
 
