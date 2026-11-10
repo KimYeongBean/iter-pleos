@@ -1,7 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -127,7 +126,7 @@ internal fun Splash(
                 text = stringResource(R.string.app_name),
                 modifier =
                 Modifier.graphicsLayer {
-                    val shown = FastOutSlowInEasing.transform(grownFraction(drawn(), 1 - NAME_SPAN, NAME_SPAN))
+                    val shown = easeInOut(grownFraction(drawn(), 1 - NAME_SPAN, NAME_SPAN))
                     alpha = shown
                     translationY = (1 - shown) * 16.dp.toPx()
                 },
@@ -187,7 +186,7 @@ internal fun DrawScope.drawRouteSplash(
     progress: Float,
 ) {
     val side = size.minDimension
-    val lapLength = splashTrackMeasure.length * FastOutSlowInEasing.transform(progress)
+    val lapLength = splashTrackMeasure.length * easeInOut(progress)
     val stroke = Stroke(TRACK_WIDTH, cap = StrokeCap.Round, join = StrokeJoin.Round)
     val driven = Path()
     splashTrackMeasure.getSegment(0f, lapLength, driven, startWithMoveTo = true)

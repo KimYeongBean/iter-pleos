@@ -1,7 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import androidx.compose.animation.core.EaseOutBack
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -415,8 +413,8 @@ internal object SnowArt : ThemeArt {
         val side = size.minDimension
         val armLength = side * 0.44f
         val armWidth = side * 0.026f
-        val armGrown = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_ARM_SPAN))
-        rotate(degrees = -SPLASH_TURN_DEG * (1 - FastOutSlowInEasing.transform(progress))) {
+        val armGrown = easeInOut(grownFraction(progress, 0f, SPLASH_ARM_SPAN))
+        rotate(degrees = -SPLASH_TURN_DEG * (1 - easeInOut(progress))) {
             // Outlines first, highlights on top.
             listOf(Color(p.outerFastArgb) to armWidth, Color(p.innerFastArgb) to armWidth * 0.42f).forEach { (color, width) ->
                 for (arm in 0 until ARMS) {
@@ -425,7 +423,7 @@ internal object SnowArt : ThemeArt {
                     drawLine(color, center, center + along * (armLength * armGrown), width, StrokeCap.Round)
                     SPLASH_TWIGS.forEach { (foot, reach) ->
                         // A twig sprouts about when the arm reaches its foot.
-                        val sprouted = EaseOutBack.transform(grownFraction(progress, SPLASH_ARM_SPAN * foot, SPLASH_TWIG_SPAN))
+                        val sprouted = easeOutBack(grownFraction(progress, SPLASH_ARM_SPAN * foot, SPLASH_TWIG_SPAN))
                         if (sprouted <= 0f) return@forEach
                         val base = center + along * (armLength * foot)
                         for (twigSide in -1..1 step 2) {

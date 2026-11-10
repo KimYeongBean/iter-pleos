@@ -99,6 +99,49 @@ internal fun grownFraction(
     span: Float,
 ): Float = if (progress >= 1f) 1f else ((progress - timePosition) / span).coerceIn(0f, 1f)
 
+/** Halvings [easeInOut] makes to find its place on the curve: far finer than a pixel. */
+private const val EASE_HALVINGS = 20
+
+/** One coordinate of a cubic Bezier curve from 0 to 1 with control values [c1] and [c2], [t] along it. */
+private fun bezier(
+    c1: Float,
+    c2: Float,
+    t: Float,
+): Float {
+    val u = 1 - t
+    return 3 * u * u * t * c1 + 3 * u * t * t * c2 + t * t * t
+}
+
+/**
+ * [fraction] (0 to 1) eased along the Material standard curve (0.4, 0, 0.2, 1), the one
+ * `FastOutSlowInEasing` follows: a quick start and a long soft stop, 0 at 0 and 1 at 1. Found by
+ * halving, so it is safe to call while drawing at any fraction: Compose's cubic easings can throw
+ * near the ends (#115).
+ */
+internal fun easeInOut(fraction: Float): Float {
+    if (!(fraction > 0f)) return 0f
+    if (fraction >= 1f) return 1f
+    var low = 0f
+    var high = 1f
+    repeat(EASE_HALVINGS) {
+        val middle = (low + high) / 2
+        if (bezier(0.4f, 0.2f, middle) < fraction) low = middle else high = middle
+    }
+    return bezier(0f, 1f, (low + high) / 2)
+}
+
+/** The back easing's constant: this one makes [easeOutBack] run about a tenth past 1. */
+private const val BACK_OVERSHOOT = 1.70158f
+
+/**
+ * [fraction] (0 to 1) eased so the value runs a little past 1 and settles back: 0 at 0, 1 at 1.
+ * Plain arithmetic, so it too is safe while drawing.
+ */
+internal fun easeOutBack(fraction: Float): Float {
+    val t = fraction.coerceIn(0f, 1f) - 1
+    return 1 + (BACK_OVERSHOOT + 1) * t * t * t + BACK_OVERSHOOT * t * t
+}
+
 /**
  * What [compute] made of the input last asked for, kept so a repeating effect only draws: the same
  * day art or route (the same object) is computed once, not every frame. Used on the main thread only.

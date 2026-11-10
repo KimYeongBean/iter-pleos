@@ -1,6 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -270,7 +269,7 @@ internal object InkWashArt : ThemeArt {
         val r = side * SPLASH_CIRCLE_RADIUS
         val topLeft = center - Offset(r, r)
         val arcSize = Size(r * 2, r * 2)
-        val brushed = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_BRUSH_SPAN))
+        val brushed = easeInOut(grownFraction(progress, 0f, SPLASH_BRUSH_SPAN))
         val pieceSweep = SPLASH_SWEEP_DEG / SPLASH_BRUSH_PIECES
         repeat(SPLASH_BRUSH_PIECES) { i ->
             val along = i.toFloat() / SPLASH_BRUSH_PIECES
