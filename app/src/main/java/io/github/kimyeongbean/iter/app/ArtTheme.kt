@@ -4,7 +4,7 @@ import androidx.annotation.StringRes
 
 /**
  * Theme (GLOSSARY: 테마): the colours and the way the map graph, the day art and the grass cells
- * are drawn, chosen by the user. In a plain theme (GLOSSARY: 단색 테마) the drawing is the same,
+ * are drawn, chosen by the user. In the default theme (GLOSSARY: 기본 테마) and the plain themes (GLOSSARY: 일반 테마) the drawing is the same,
  * only the panel ground and the line colour differ. An advanced theme (GLOSSARY: 고급 테마) has
  * its own drawing, app colours and backdrop pattern ([art]). Only [DEFAULT] lets the user pick the
  * speed colour base and the background; the others fix both.

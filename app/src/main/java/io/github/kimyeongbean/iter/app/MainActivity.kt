@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
             val art = settings.theme.art
             IterTheme(dark, settings.theme.appColors(dark)) {
                 Surface {
-                    // Decoration only, and still: it reads no state, so it is drawn once.
+                    // Decoration only, and still: it reads no state that changes while a theme is on.
                     if (art != null) Canvas(Modifier.fillMaxSize()) { with(art) { drawBackdrop(dark) } }
                     IterApp(
                         recordStore = app.recordStore,

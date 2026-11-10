@@ -14,10 +14,10 @@ import io.github.kimyeongbean.iter.art.DayArtPattern
 import io.github.kimyeongbean.iter.art.DayArtShape
 
 /** Not yet drawn shapes show this faintly during the draw-in, so the grown grass cell never goes blank. */
-private const val DRAW_IN_GHOST_ALPHA = 0.15f
+internal const val DRAW_IN_GHOST_ALPHA = 0.15f
 
 /** The drawing radius leaves this share of half the box empty round the art. */
-private const val DRAWING_RADIUS_SCALE = 0.92f
+internal const val DRAWING_RADIUS_SCALE = 0.92f
 
 /** Pattern rings, as fractions of the drawing radius. Speed bars end at [DayArtData.SPEED_BAR_MAX_RADIUS]. */
 private const val LOW_BEAM_RING_RADIUS = 0.19f

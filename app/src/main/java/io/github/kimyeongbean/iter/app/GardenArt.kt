@@ -24,14 +24,28 @@ private const val CENTRE_RADIUS = 0.12f
 /** A petal unfolds over this share of the draw-in after the draw-in reaches it. */
 private const val UNFOLD_SPAN = 0.12f
 
-/** Petals and leaves not yet drawn show this faintly, so a growing grass cell never goes blank. */
-private const val GHOST_ALPHA = 0.15f
+/** A leaf grows over this share of the draw-in; the flower at the end blooms over the last of it. */
+private const val LEAF_GROW_SPAN = 0.05f
+private const val BLOOM_SPAN = 0.06f
+
+/** Petals let a little of what is under them through. */
+private const val PETAL_ALPHA = 0.92f
+
+/** Petals of the big day art (two shapes each at most) and of a thumbnail, where fewer stay apart. */
+private const val BIG_PETALS = 60
+private const val THUMBNAIL_PETALS = 14
+
+/** How far a leaf leans away from the stem, in radians. */
+private const val LEAF_ANGLE_RAD = 1.05f
+
+/** Grass tufts scattered over the map graph panel. */
+private const val PANEL_TUFTS = 48
 
 /** Distance along the stem between leaves, in route unit square lengths; sides alternate. */
 private const val LEAF_SPACING = 0.035f
 
-/** Backdrop marks per this many px² of screen, at 1x density. */
-private const val BACKDROP_CELL_PX = 120f
+/** One backdrop mark per square of this side, in dp. */
+private const val BACKDROP_CELL_DP = 120f
 
 /**
  * Garden (정원): the day is a flower with thin petals, the route a stem with leaves, on a flower
@@ -134,7 +148,7 @@ internal object GardenArt : ThemeArt {
         val p = palette(dark)
         val tuft = Color(p.backdropTuftArgb)
         val soil = Color(p.backdropSoilArgb)
-        val cell = BACKDROP_CELL_PX * density
+        val cell = BACKDROP_CELL_DP * density
         val count = (size.width * size.height / (cell * cell)).toInt()
         repeat(count) { i ->
             val at = Offset(scatter(i, 1) * size.width, scatter(i, 2) * size.height)
@@ -146,65 +160,105 @@ internal object GardenArt : ThemeArt {
         }
     }
 
+    /** A petal: a run of the day art's shapes, summed up once so drawing only draws. */
+    private class Petal(
+        val angleDeg: Float,
+        val timePosition: Float,
+        val speedIntensity: Float,
+        val turnSignal: Boolean,
+        val wiper: Boolean,
+        val lowBeam: Boolean,
+    )
+
+    private fun petals(
+        data: DayArtData,
+        count: Int,
+    ): List<Petal> {
+        val shapes = data.shapes
+        val perPetal = ((shapes.size + count - 1) / count).coerceAtLeast(1)
+        return shapes.chunked(perPetal).map { group ->
+            val first = group.first()
+            val last = group.last()
+            Petal(
+                angleDeg = ((first.startAngleDeg + last.startAngleDeg + last.sweepAngleDeg) / 2).toFloat() - 90f,
+                timePosition = first.timePosition.toFloat(),
+                speedIntensity = group.sumOf { it.speedIntensity.toDouble() }.toFloat() / group.size,
+                turnSignal = group.any { DayArtPattern.TURN_SIGNAL in it.patterns },
+                wiper = group.any { DayArtPattern.WIPER in it.patterns },
+                lowBeam = group.any { DayArtPattern.LOW_BEAM in it.patterns },
+            )
+        }
+    }
+
+    private val bigPetals = LastComputed<DayArtData, List<Petal>> { petals(it, BIG_PETALS) }
+    private val thumbnailPetals = LastComputed<DayArtData, List<Petal>> { petals(it, THUMBNAIL_PETALS) }
+
     override fun DrawScope.drawDayArt(
         data: DayArtData,
         dark: Boolean,
         progress: Float,
         loopSeconds: Float,
     ) {
-        val shapes = data.shapes
-        if (shapes.isEmpty()) return
+        if (data.shapes.isEmpty()) return
         val p = palette(dark)
-        val radius = size.minDimension / 2 * 0.92f
-        val thumbnail = size.minDimension < THUMBNAIL_MAX_PX
-        // A petal per two shapes; a thumbnail keeps about fourteen so they stay apart.
-        val perPetal = if (thumbnail) (shapes.size / 14).coerceAtLeast(1) else 2
+        val radius = size.minDimension / 2 * DRAWING_RADIUS_SCALE
+        val thumbnail = isThumbnail
         val halfWidth = radius * if (thumbnail) 0.11f else 0.05f
         val inner = radius * PETAL_INNER_RADIUS
         val path = Path()
         // The whole flower leans a little to and fro; each petal flutters on its own beat.
         rotate(degrees = sin(loopSeconds * 0.9f) * 1.6f) {
-            var from = 0
-            while (from < shapes.size) {
-                val to = minOf(from + perPetal, shapes.size)
-                val group = shapes.subList(from, to)
-                val first = group.first()
-                val last = group.last()
-                val intensity = group.sumOf { it.speedIntensity.toDouble() }.toFloat() / group.size
-                val midDeg = (first.startAngleDeg + (last.startAngleDeg + last.sweepAngleDeg)) / 2 - 90
-                val angle = Math.toRadians(midDeg).toFloat() + sin(loopSeconds * 1.3f + from * 0.7f) * 0.012f
-                val outer = radius * (0.25f + 0.6f * intensity.coerceAtLeast(0.08f))
-                val color = mixArgb(p.petalSlowArgb, p.petalFastArgb, intensity)
-                val unfolded = ((progress - first.timePosition.toFloat()) / UNFOLD_SPAN).coerceIn(0f, 1f)
-                if (unfolded < 1f) drawPetal(path, angle, inner, outer, halfWidth, color, GHOST_ALPHA)
-                if (unfolded > 0f) drawPetal(path, angle, inner, inner + (outer - inner) * unfolded, halfWidth, color, 0.92f)
-                if (!thumbnail && unfolded >= 1f) {
-                    val direction = Offset(cos(angle), sin(angle))
-                    val patterns = group.flatMapTo(mutableSetOf()) { it.patterns }
-                    if (DayArtPattern.TURN_SIGNAL in patterns) {
-                        drawCircle(Color(p.budArgb), radius * 0.018f, center + direction * (outer + radius * 0.04f))
-                    }
-                    if (DayArtPattern.WIPER in patterns) {
-                        drawCircle(Color(p.rainArgb), radius * 0.014f, center + direction * (radius * 0.97f))
-                    }
-                    if (DayArtPattern.LOW_BEAM in patterns) {
-                        val r = radius * 0.19f
-                        drawArc(
-                            color = Color(p.stemLowBeamArgb),
-                            startAngle = midDeg.toFloat() - 3.5f,
-                            sweepAngle = 7f,
-                            useCenter = false,
-                            topLeft = center - Offset(r, r),
-                            size = Size(r * 2, r * 2),
-                            style = Stroke(radius * 0.04f),
-                        )
-                    }
+            (if (thumbnail) thumbnailPetals else bigPetals)[data].forEachIndexed { i, petal ->
+                val angleRad = Math.toRadians(petal.angleDeg.toDouble()).toFloat() + sin(loopSeconds * 1.3f + i * 1.4f) * 0.012f
+                val outer = radius * (0.25f + 0.6f * petal.speedIntensity.coerceAtLeast(0.08f))
+                val color = mixArgb(p.petalSlowArgb, p.petalFastArgb, petal.speedIntensity)
+                val unfolded = grownFraction(progress, petal.timePosition, UNFOLD_SPAN)
+                if (unfolded < 1f) drawBlade(path, center, angleRad, inner, outer, halfWidth, color, DRAW_IN_GHOST_ALPHA)
+                if (unfolded > 0f) drawBlade(path, center, angleRad, inner, inner + (outer - inner) * unfolded, halfWidth, color, PETAL_ALPHA)
+                if (thumbnail || unfolded < 1f) return@forEachIndexed
+                val direction = Offset(cos(angleRad), sin(angleRad))
+                if (petal.turnSignal) drawCircle(Color(p.budArgb), radius * 0.018f, center + direction * (outer + radius * 0.04f))
+                if (petal.wiper) drawCircle(Color(p.rainArgb), radius * 0.014f, center + direction * (radius * 0.97f))
+                if (petal.lowBeam) {
+                    val r = radius * 0.19f
+                    drawArc(
+                        color = Color(p.stemLowBeamArgb),
+                        startAngle = petal.angleDeg - 3.5f,
+                        sweepAngle = 7f,
+                        useCenter = false,
+                        topLeft = center - Offset(r, r),
+                        size = Size(r * 2, r * 2),
+                        style = Stroke(radius * 0.04f),
+                    )
                 }
-                from = to
             }
             drawCircle(Color(p.centreArgb), radius * CENTRE_RADIUS)
         }
     }
+
+    /** A leaf on the stem: where it grows, which way the stem runs there, and which side it is on. */
+    private class Leaf(
+        val at: RoutePoint,
+        val stemAngleRad: Float,
+        val side: Float,
+    )
+
+    /** One leaf every [LEAF_SPACING] along each stroke, on alternating sides, found once per route. */
+    private val leaves =
+        LastComputed<MapRoute, List<Leaf>> { route ->
+            val found = mutableListOf<Leaf>()
+            route.strokes.forEach { stroke ->
+                var sinceLeaf = 0f
+                for (i in 1 until stroke.lastIndex) {
+                    sinceLeaf += hypot(stroke[i].x - stroke[i - 1].x, stroke[i].y - stroke[i - 1].y)
+                    if (sinceLeaf < LEAF_SPACING) continue
+                    sinceLeaf = 0f
+                    val stemAngleRad = atan2(stroke[i + 1].y - stroke[i - 1].y, stroke[i + 1].x - stroke[i - 1].x)
+                    found += Leaf(stroke[i], stemAngleRad, side = if (found.size % 2 == 0) 1f else -1f)
+                }
+            }
+            found
+        }
 
     override fun DrawScope.drawMapGraph(
         route: MapRoute,
@@ -214,38 +268,33 @@ internal object GardenArt : ThemeArt {
     ) {
         val p = palette(dark)
         val frame = mapFrame()
+        val side = size.minDimension
         val stem = Color(p.stemArgb)
         val stemLowBeam = Color(p.stemLowBeamArgb)
-        val stemWidth = size.minDimension * 0.011f
+        val stemWidth = side * 0.011f
         val path = Path()
 
         // The bed: tufts in the panel's own soft shade, under everything.
         val tuft = Color(p.colors.cardHighArgb)
-        repeat(48) { i -> drawTuft(Offset(scatter(i, 21) * size.width, scatter(i, 22) * size.height), size.minDimension * 0.016f, tuft) }
+        repeat(PANEL_TUFTS) { i -> drawTuft(Offset(scatter(i, 21) * size.width, scatter(i, 22) * size.height), side * 0.016f, tuft) }
 
         drawRain(route, frame, progress, loopSeconds, Color(p.rainArgb))
 
-        var leafIndex = 0
+        // Leaves first, so the stem runs over their feet.
+        leaves[route].forEachIndexed { i, leaf ->
+            val grown = grownFraction(progress, leaf.at.timePosition, LEAF_GROW_SPAN)
+            if (grown <= 0f) return@forEachIndexed
+            val angleRad = leaf.stemAngleRad + leaf.side * LEAF_ANGLE_RAD + sin(loopSeconds * 1.1f + i) * 0.14f
+            val intensity = leaf.at.speedIntensity
+            val length = side * (0.016f + 0.026f * intensity) * grown
+            drawBlade(path, frame.at(leaf.at), angleRad, 0f, length, length * 0.34f, mixArgb(p.leafSlowArgb, p.leafFastArgb, intensity), 1f)
+        }
         route.strokes.forEach { stroke ->
-            // Leaves first, so the stem runs over their feet: one every LEAF_SPACING along the stem.
-            var sinceLeaf = 0f
-            stroke.forEachIndexed { i, point ->
-                if (i == 0 || i == stroke.lastIndex) return@forEachIndexed
-                sinceLeaf += hypot(point.x - stroke[i - 1].x, point.y - stroke[i - 1].y)
-                if (sinceLeaf < LEAF_SPACING) return@forEachIndexed
-                sinceLeaf = 0f
-                leafIndex++
-                val grown = ((progress - point.timePosition) / 0.05f).coerceIn(0f, 1f)
-                if (grown <= 0f) return@forEachIndexed
-                val before = frame.at(stroke[i - 1])
-                val after = frame.at(stroke[i + 1])
-                val side = if (leafIndex % 2 == 0) 1f else -1f
-                val sway = sin(loopSeconds * 1.1f + leafIndex) * 0.14f
-                val angle = atan2(after.y - before.y, after.x - before.x) + side * 1.05f + sway
-                val length = size.minDimension * (0.016f + 0.026f * point.speedIntensity) * grown
-                drawLeaf(path, frame.at(point), angle, length, mixArgb(p.leafSlowArgb, p.leafFastArgb, point.speedIntensity))
-            }
-            stroke.zipWithNext().forEach { (a, b) ->
+            // A stretch of one sample has no line to draw: it is a dot of stem.
+            if (stroke.size == 1 && progress >= stroke[0].timePosition) drawCircle(stem, stemWidth / 2, frame.at(stroke[0]))
+            for (i in 1..stroke.lastIndex) {
+                val a = stroke[i - 1]
+                val b = stroke[i]
                 drawSegment(a, b, progress, frame, if (a.lowBeamOn || b.lowBeamOn) stemLowBeam else stem, stemWidth)
             }
             // A bud where the turn signal comes on.
@@ -254,26 +303,24 @@ internal object GardenArt : ThemeArt {
                 if (!comesOn || progress < point.timePosition) return@forEachIndexed
                 val at = frame.at(point)
                 val next = frame.at(stroke[minOf(i + 1, stroke.lastIndex)])
-                val heading = atan2(next.y - at.y, next.x - at.x) + (PI / 2).toFloat()
-                val bud = at + Offset(cos(heading), sin(heading)) * (size.minDimension * 0.022f)
+                val besideRad = atan2(next.y - at.y, next.x - at.x) + (PI / 2).toFloat()
+                val bud = at + Offset(cos(besideRad), sin(besideRad)) * (side * 0.022f)
                 drawLine(stem, at, bud, stemWidth * 0.4f, StrokeCap.Round)
-                drawCircle(Color(p.budArgb), size.minDimension * 0.009f, bud)
+                drawCircle(Color(p.budArgb), side * 0.009f, bud)
             }
         }
 
-        // The seed mound at the start and, once the stem is grown, a flower at the end.
+        // The seed mound at the start and, as the stem finishes growing, a flower at the end.
         val first = route.strokes.firstOrNull()?.firstOrNull() ?: return
         val last = route.strokes.last().last()
-        val mound = Size(size.minDimension * 0.04f, size.minDimension * 0.018f)
+        val mound = Size(side * 0.04f, side * 0.018f)
         drawOval(Color(p.colors.outlineArgb), frame.at(first) - Offset(mound.width / 2, mound.height / 4), mound)
-        val bloom = ((progress - 0.94f) / 0.06f).coerceIn(0f, 1f)
+        val bloom = grownFraction(progress, 1 - BLOOM_SPAN, BLOOM_SPAN)
         if (bloom > 0f) {
             val at = frame.at(last)
-            val petal = size.minDimension * 0.028f * bloom
-            val turn = sin(loopSeconds * 0.9f) * 0.08f
-            repeat(8) { i ->
-                drawPetal(path, i * (PI / 4).toFloat() + turn, petal * 0.2f, petal, petal * 0.3f, Color(p.petalFastArgb), 0.95f, at)
-            }
+            val petal = side * 0.028f * bloom
+            val turnRad = sin(loopSeconds * 0.9f) * 0.08f
+            repeat(8) { i -> drawBlade(path, at, i * (PI / 4).toFloat() + turnRad, petal * 0.2f, petal, petal * 0.3f, Color(p.petalFastArgb), PETAL_ALPHA) }
             drawCircle(Color(p.centreArgb), petal * 0.25f, at)
         }
     }
@@ -302,18 +349,21 @@ internal object GardenArt : ThemeArt {
         }
     }
 
-    /** A thin petal from [inner] to [outer] along [angle] (radians), at most twice [halfWidth] wide. */
-    private fun DrawScope.drawPetal(
+    /**
+     * A petal or a leaf: a pointed blade from [inner] to [outer] away from [at] along [angleRad],
+     * at most twice [halfWidth] wide.
+     */
+    private fun DrawScope.drawBlade(
         path: Path,
-        angle: Float,
+        at: Offset,
+        angleRad: Float,
         inner: Float,
         outer: Float,
         halfWidth: Float,
         color: Color,
         alpha: Float,
-        at: Offset = center,
     ) {
-        val along = Offset(cos(angle), sin(angle))
+        val along = Offset(cos(angleRad), sin(angleRad))
         val across = Offset(-along.y, along.x) * halfWidth
         val foot = at + along * inner
         val tip = at + along * outer
@@ -323,25 +373,6 @@ internal object GardenArt : ThemeArt {
         path.quadraticTo(belly.x + across.x, belly.y + across.y, tip.x, tip.y)
         path.quadraticTo(belly.x - across.x, belly.y - across.y, foot.x, foot.y)
         drawPath(path, color, alpha)
-    }
-
-    /** A leaf from [foot] along [angle] (radians), [length] long. */
-    private fun DrawScope.drawLeaf(
-        path: Path,
-        foot: Offset,
-        angle: Float,
-        length: Float,
-        color: Color,
-    ) {
-        val along = Offset(cos(angle), sin(angle))
-        val across = Offset(-along.y, along.x) * (length * 0.34f)
-        val tip = foot + along * length
-        val belly = foot + along * (length * 0.5f)
-        path.reset()
-        path.moveTo(foot.x, foot.y)
-        path.quadraticTo(belly.x + across.x, belly.y + across.y, tip.x, tip.y)
-        path.quadraticTo(belly.x - across.x, belly.y - across.y, foot.x, foot.y)
-        drawPath(path, color)
     }
 
     /** Three short blades of grass fanning up from [foot]. */

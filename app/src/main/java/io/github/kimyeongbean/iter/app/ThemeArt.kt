@@ -66,8 +66,11 @@ internal interface ThemeArt {
     )
 }
 
-/** Day art smaller than this (px) is a thumbnail: themes leave out fine detail there. */
-internal const val THUMBNAIL_MAX_PX = 260f
+/** Day art narrower than this is a thumbnail: themes leave out fine detail there. */
+private const val THUMBNAIL_MAX_DP = 200f
+
+/** Whether the draw scope is a thumbnail (a grass cell), not the big day art. */
+internal val DrawScope.isThumbnail: Boolean get() = size.minDimension < THUMBNAIL_MAX_DP * density
 
 /** How fast the stretch was, 0 at standstill to 1 at the speed colour's strongest speed. */
 internal val DayArtShape.speedIntensity: Float
@@ -76,15 +79,35 @@ internal val DayArtShape.speedIntensity: Float
         return ((outerRadius - DayArtData.SPEED_BAR_INNER_RADIUS) / span).toFloat().coerceIn(0f, 1f)
     }
 
-/** Alpha of the speed colour at standstill (the speed colour runs from here to opaque). */
-private const val SPEED_COLOR_MIN_ALPHA = 0.25f
+/**
+ * How far a part that starts at [timePosition] (0 to 1, drive time) and takes [span] of the draw-in
+ * has come at [progress], 0 to 1. Whatever its start, it is complete once the draw-in is.
+ */
+internal fun grownFraction(
+    progress: Float,
+    timePosition: Float,
+    span: Float,
+): Float = if (progress >= 1f) 1f else ((progress - timePosition) / span).coerceIn(0f, 1f)
 
-/** How fast the sample was, 0 at standstill to 1 at the speed colour's strongest speed. */
-internal val RoutePoint.speedIntensity: Float
-    get() {
-        val alpha = (colorArgb ushr 24) / 255f
-        return ((alpha - SPEED_COLOR_MIN_ALPHA) / (1 - SPEED_COLOR_MIN_ALPHA)).coerceIn(0f, 1f)
+/**
+ * What [compute] made of the input last asked for, kept so a repeating effect only draws: the same
+ * day art or route (the same object) is computed once, not every frame. Used on the main thread only.
+ */
+internal class LastComputed<K : Any, V : Any>(
+    private val compute: (K) -> V,
+) {
+    private var key: K? = null
+    private var value: V? = null
+
+    operator fun get(input: K): V {
+        val kept = value
+        if (kept != null && key === input) return kept
+        return compute(input).also {
+            key = input
+            value = it
+        }
     }
+}
 
 /** The colour [fraction] of the way from [fromArgb] to [toArgb]. */
 internal fun mixArgb(
@@ -108,7 +131,7 @@ internal fun scatter(
 }
 
 /**
- * Seconds since the repeating effect started, advancing each frame while [active]; 0 otherwise.
+ * Seconds since the repeating effect started, advancing each frame while [active]; 0 when it is not.
  * It stops when the caller leaves the composition (another screen, or "기록 중" on gear D) and
  * while the app is in the background (Compose pauses its frame clock when the window stops).
  */
@@ -116,7 +139,10 @@ internal fun scatter(
 internal fun rememberLoopSeconds(active: Boolean): FloatState {
     val seconds = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(active) {
-        if (!active) return@LaunchedEffect
+        if (!active) {
+            seconds.floatValue = 0f
+            return@LaunchedEffect
+        }
         val startNanos = withFrameNanos { it }
         while (true) {
             withFrameNanos { nanos -> seconds.floatValue = (nanos - startNanos) / 1_000_000_000f }

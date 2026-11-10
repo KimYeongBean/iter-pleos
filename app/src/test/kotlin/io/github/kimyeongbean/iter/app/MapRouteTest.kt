@@ -34,7 +34,7 @@ class MapRouteTest {
         x: Float,
         y: Float,
         timePosition: Float = 0f,
-    ) = RoutePoint(x, y, 0, timePosition, turnSignalOn = false, wiperOn = false, lowBeamOn = false)
+    ) = RoutePoint(x, y, 0, 0f, timePosition, turnSignalOn = false, wiperOn = false, lowBeamOn = false)
 
     private fun session(
         startEpochMs: Long,
