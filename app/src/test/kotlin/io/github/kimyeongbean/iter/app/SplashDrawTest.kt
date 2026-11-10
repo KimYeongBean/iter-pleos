@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -59,6 +60,14 @@ class SplashDrawTest {
             assertEquals(1f, ease(1f), 0f)
             assertEquals(0f, ease(-0.5f), 0f)
             assertEquals(1f, ease(1.5f), 0f)
+        }
+    }
+
+    @Test
+    fun `ease in out keeps the speed of the curve it replaces`() {
+        // Every hundredth, away from the ends where the library curve can throw.
+        (1..99).map { it / 100f }.forEach { fraction ->
+            assertEquals(FastOutSlowInEasing.transform(fraction), easeInOut(fraction), 0.001f)
         }
     }
 
