@@ -6,6 +6,8 @@ captures/
 .externalNativeBuild/
 .cxx/
 *.apk
+# Contest submission APK (README "APK 위치")
+!/apk/*.apk
 *.aab
 *.ap_
 *.dex

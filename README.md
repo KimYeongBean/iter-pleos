@@ -5,15 +5,38 @@ Iter는 Pleos Vehicle SDK를 활용한 Android Automotive OS(AAOS) 앱입니다.
 ## 공모전 정보
 현대자동차 Pleos 앱 개발 공모전(대학생 부문) 출품작입니다.
 
-## 개발 환경
+## 실행 방법
+Pleos Connect Emulator를 켠 뒤 release APK([APK 위치](#apk-위치))를 설치하고 실행합니다. `adb`가 PATH에 있어야 합니다.
+```bash
+adb install apk/팀명_Iter_release.apk
+adb shell am start --user 10 -n io.github.kimyeongbean.iter/.app.MainActivity
+```
+처음 실행하면 차속·위치 권한을 묻습니다. 기어가 P일 때 날짜별 기록 화면이 보이고, D로 바꾸면 '기록 중'만 보입니다. 주행을 만들어 보는 방법은 아래 [테스트 환경·설정](#테스트-환경설정)에 있습니다.
+
+## APK 위치
+`apk/팀명_Iter_release.apk` (서명된 release APK. 팀명이 정해지면 추가합니다.)
+
+직접 만들 때는 아래 [소스에서 빌드](#소스에서-빌드)를 봅니다.
+
+## 테스트 환경·설정
 ### 요구 사항
-- JDK 17
-- Android SDK (compileSdk 35). 환경 변수 `ANDROID_HOME`에 SDK 경로를 두거나 `local.properties`에 `sdk.dir`을 적습니다.
-- 에뮬레이터 확인: Pleos Connect Emulator v2.1.0 이상, `adb`가 PATH에 있어야 합니다.
-### 빌드 및 실행
-준비 중
-### 에뮬레이터 / 실차 테스트
-Pleos Connect Emulator v2.1.0(Virtual Console 지원 최소 버전)에서 확인했습니다.
+- Pleos Connect Emulator v2.1.0 이상 (Virtual Console 지원 최소 버전). 실차에서는 확인하지 않았습니다.
+- 소스에서 빌드할 때: JDK 17, Android SDK (compileSdk 35). 환경 변수 `ANDROID_HOME`에 SDK 경로를 두거나 `local.properties`에 `sdk.dir`을 적습니다.
+### 소스에서 빌드
+```bash
+./gradlew build            # 빌드 + JVM 단위 테스트
+./gradlew assembleRelease  # app/build/outputs/apk/release/
+```
+release APK를 서명하려면 저장소 맨 위에 `keystore.properties`를 둡니다. 이 파일과 키스토어는 커밋하지 않습니다(`.gitignore`). 파일이 없으면 서명 없는 APK(`app-release-unsigned.apk`)가 나옵니다.
+```properties
+storeFile=키스토어 파일 경로 (절대 경로, 또는 저장소 맨 위 기준 상대 경로)
+storePassword=…
+keyAlias=…
+keyPassword=…
+```
+release 빌드에는 디버그 메뉴(가짜 기록 넣기, 기록 초기화)가 없습니다. 디버그 메뉴가 필요하면 debug 빌드를 씁니다.
+### 에뮬레이터 테스트
+Pleos Connect Emulator v2.1.0에서 확인했습니다.
 
 1. 에뮬레이터를 켜고 앱을 설치·실행합니다. 처음 실행하면 차속·위치 권한을 묻습니다.
    ```bash
@@ -53,6 +76,20 @@ AAOS 에뮬레이터는 사용자 10으로 돌아서, 앱 DB를 볼 때는 `run-
 | 조향각 | Pleos SDK `SteeringWheel` | Motion > Steering Angle, 핸들 | 받음. Virtual Console에 넣은 값과 부호가 반대로 들어옴(-25 → 25) |
 | 브레이크 페달 | Pleos SDK `Brake` | Motion > Brake Pedal | 받음 (밟음·안 밟음) |
 | 위치 | LocationManager GPS | — | 받음. 다만 에뮬레이터 기본 좌표에 고정돼 움직이지 않음. 내장 내비 모의 주행으로 위치가 움직이는지는 아직 확인하지 않음 |
+
+## 오픈소스 라이선스
+앱에 들어가는 라이브러리 목록은 [AboutLibraries](https://github.com/mikepenz/AboutLibraries) 플러그인으로 뽑습니다.
+```bash
+./gradlew :app:exportLibraries -PaboutLibraries.exportVariant=release
+```
+2026-11-10 기준 103개이고, Pleos Vehicle SDK 3개를 뺀 100개가 모두 Apache-2.0입니다. 직접 넣은 것은 아래와 같고 나머지는 이들이 끌어오는 라이브러리입니다.
+
+| 라이브러리 | 라이선스 |
+|---|---|
+| AndroidX Core·Activity·Compose(UI·Foundation·Animation·Material3)·Room | Apache-2.0 |
+| Kotlin 표준 라이브러리, kotlinx-coroutines | Apache-2.0 |
+| Pleos Vehicle SDK (`ai.pleos.playground:Vehicle`) | 표기 없음 (Pleos Playground 공개 SDK) |
+| Asta Sans 글꼴 | SIL OFL 1.1 ([전문](app/src/main/assets/licenses/asta_sans_ofl.txt)) |
 
 ## 협업 방식
 브랜치·커밋·PR 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
