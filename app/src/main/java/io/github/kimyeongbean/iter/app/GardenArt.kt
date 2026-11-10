@@ -1,7 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import androidx.compose.animation.core.EaseOutBack
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -353,13 +351,13 @@ internal object GardenArt : ThemeArt {
         drawOval(Color(p.colors.outlineArgb), foot - Offset(mound.width / 2, mound.height / 3), mound)
 
         SPLASH_LEAVES.forEachIndexed { i, leafAt ->
-            val grown = EaseOutBack.transform(grownFraction(progress, SPLASH_STEM_SPAN * leafAt, SPLASH_LEAF_SPAN))
+            val grown = easeOutBack(grownFraction(progress, SPLASH_STEM_SPAN * leafAt, SPLASH_LEAF_SPAN))
             if (grown <= 0f) return@forEachIndexed
             val leafSide = if (i % 2 == 0) 1f else -1f
             val length = side * 0.13f * grown
             drawBlade(path, stemAt(leafAt), -(PI / 2).toFloat() + leafSide * LEAF_ANGLE_RAD, 0f, length, length * 0.34f, Color(p.leafFastArgb), 1f)
         }
-        val stemGrown = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_STEM_SPAN))
+        val stemGrown = easeInOut(grownFraction(progress, 0f, SPLASH_STEM_SPAN))
         repeat(SPLASH_STEM_PIECES) { i ->
             drawLine(
                 Color(p.stemArgb),
@@ -374,13 +372,13 @@ internal object GardenArt : ThemeArt {
         val firstOpens = SPLASH_STEM_SPAN - 0.05f
         val opensEvery = (1f - SPLASH_PETAL_SPAN - firstOpens) / (SPLASH_PETALS - 1)
         repeat(SPLASH_PETALS) { i ->
-            val open = EaseOutBack.transform(grownFraction(progress, firstOpens + opensEvery * i, SPLASH_PETAL_SPAN))
+            val open = easeOutBack(grownFraction(progress, firstOpens + opensEvery * i, SPLASH_PETAL_SPAN))
             if (open <= 0f) return@repeat
             val angleRad = -(PI / 2).toFloat() + i * (2 * PI / SPLASH_PETALS).toFloat()
             val color = mixArgb(p.petalSlowArgb, p.petalFastArgb, if (i % 2 == 0) 1f else 0.55f)
             drawBlade(path, head, angleRad, side * 0.04f, side * 0.04f + side * 0.26f * open, side * 0.05f, color, PETAL_ALPHA)
         }
-        val centreGrown = EaseOutBack.transform(grownFraction(progress, firstOpens, SPLASH_PETAL_SPAN))
+        val centreGrown = easeOutBack(grownFraction(progress, firstOpens, SPLASH_PETAL_SPAN))
         if (centreGrown > 0f) drawCircle(Color(p.centreArgb), side * 0.055f * centreGrown, head)
     }
 

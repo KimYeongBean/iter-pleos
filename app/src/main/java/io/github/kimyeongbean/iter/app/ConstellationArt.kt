@@ -1,7 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import androidx.compose.animation.core.EaseOutBack
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -299,11 +297,11 @@ internal object ConstellationArt : ThemeArt {
         // Each star starts this long after the one before; the last finishes with the draw-in.
         val every = (1f - SPLASH_LIGHT_UP_SPAN) / stars.lastIndex
         for (i in 0 until stars.lastIndex) {
-            val joined = FastOutSlowInEasing.transform(grownFraction(progress, every * i + SPLASH_LIGHT_UP_SPAN / 2, every))
+            val joined = easeInOut(grownFraction(progress, every * i + SPLASH_LIGHT_UP_SPAN / 2, every))
             if (joined > 0f) drawLine(Color(p.lineArgb), stars[i], stars[i] + (stars[i + 1] - stars[i]) * joined, side * 0.011f, StrokeCap.Round)
         }
         stars.forEachIndexed { i, at ->
-            val lit = EaseOutBack.transform(grownFraction(progress, every * i, SPLASH_LIGHT_UP_SPAN))
+            val lit = easeOutBack(grownFraction(progress, every * i, SPLASH_LIGHT_UP_SPAN))
             if (lit <= 0f) return@forEachIndexed
             val last = i == stars.lastIndex
             drawSparkle(at, side * (if (last) 0.095f else 0.055f) * lit, Color(if (last) p.sparkleArgb else p.starFastArgb))

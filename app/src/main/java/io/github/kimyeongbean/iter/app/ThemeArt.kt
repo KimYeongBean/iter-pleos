@@ -100,6 +100,27 @@ internal fun grownFraction(
 ): Float = if (progress >= 1f) 1f else ((progress - timePosition) / span).coerceIn(0f, 1f)
 
 /**
+ * [fraction] (0 to 1) eased: slow at both ends, 0 at 0 and 1 at 1. Plain arithmetic, so it is safe to
+ * call while drawing at any fraction: Compose's cubic easings can throw near 1 (#115).
+ */
+internal fun easeInOut(fraction: Float): Float {
+    val t = fraction.coerceIn(0f, 1f)
+    return t * t * (3 - 2 * t)
+}
+
+/** How far [easeOutBack] goes past 1 before it settles: about a tenth. */
+private const val BACK_OVERSHOOT = 1.70158f
+
+/**
+ * [fraction] (0 to 1) eased so the value runs a little past 1 and settles back: 0 at 0, 1 at 1.
+ * Plain arithmetic, like [easeInOut].
+ */
+internal fun easeOutBack(fraction: Float): Float {
+    val t = fraction.coerceIn(0f, 1f) - 1
+    return 1 + (BACK_OVERSHOOT + 1) * t * t * t + BACK_OVERSHOOT * t * t
+}
+
+/**
  * What [compute] made of the input last asked for, kept so a repeating effect only draws: the same
  * day art or route (the same object) is computed once, not every frame. Used on the main thread only.
  */
