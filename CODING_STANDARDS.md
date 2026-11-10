@@ -6,7 +6,7 @@
 - 공개 범위 명시: `:art`·`:vehicle`은 Kotlin explicit API 모드라 `public`/`internal`을 안 적으면 컴파일 오류
 
 ## 규칙
-1. **공통 값은 한 곳에서.** SDK 레벨·라이브러리 버전은 `gradle/libs.versions.toml`에만 둡니다. [docs/interfaces.md](docs/interfaces.md) 공통 상수(샘플 간격, 속도색 최대 속도 등)는 코드에서도 상수 하나로만 정의하고 가져다 씁니다. 테스트 코드도 같습니다(예: `1_000L` 대신 `SAMPLE_INTERVAL_MS`).
+1. **공통 값은 한 곳에서.** SDK 레벨·라이브러리 버전은 `gradle/libs.versions.toml`에만 둡니다. [docs/interfaces.md](docs/interfaces.md) 공통 상수(샘플 간격, 속도색 최대 속도 등)는 코드에서도 상수 하나로만 정의하고 가져다 씁니다. 테스트 코드도 같습니다(예: `1_000L` 대신 `SAMPLE_INTERVAL_MS`). 여러 화면이 같이 쓰는 배치 값(넓은 화면 기준 폭, 화면 여백 등)도 상수 하나로 정의합니다.
 2. **드러나는 의존은 `api()`.** 모듈의 공개 함수·타입에 다른 모듈의 타입(예: `:model`의 주행 세션)이 나오면 `api()`, 안쪽에서만 쓰면 `implementation()`.
 3. **용어는 GLOSSARY를 따름.** 클래스·함수 이름은 [GLOSSARY.md](GLOSSARY.md)의 "코드에서 쓰는 이름"을 씁니다. "피할 말"은 코드에도 쓰지 않습니다. GLOSSARY를 바꾸는 시점 (이 항목이 기준, #37):
    - 기존 행의 TBD 코드 이름 칸: 그 이름을 처음 쓰는 PR에서 함께 채웁니다.
