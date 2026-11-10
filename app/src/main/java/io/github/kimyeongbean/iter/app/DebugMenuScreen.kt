@@ -3,17 +3,18 @@ package io.github.kimyeongbean.iter.app
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -42,10 +43,15 @@ internal fun DebugMenuScreen(
     val context = LocalContext.current.applicationContext
     var inserting by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
-        Text(stringResource(R.string.debug_menu_title), style = MaterialTheme.typography.headlineMedium)
-        Button(
+    Column(Modifier.fillMaxSize().padding(48.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
+            BackButton(onBack)
+            Text(stringResource(R.string.debug_menu_title), style = MaterialTheme.typography.headlineSmall)
+        }
+        DebugMenuItem(
+            title = stringResource(R.string.insert_fake_records),
+            hint = stringResource(R.string.insert_fake_records_hint, FAKE_DRIVE_DATA_DAYS),
+            action = stringResource(if (inserting) R.string.inserting_fake_records else R.string.insert_fake_records_action),
             enabled = !inserting,
             onClick = {
                 inserting = true
@@ -66,8 +72,30 @@ internal fun DebugMenuScreen(
                         ).show()
                 }
             },
+        )
+    }
+}
+
+/** One row of the debug menu list: what it does on the left, the button that does it on the right. */
+@Composable
+private fun DebugMenuItem(
+    title: String,
+    hint: String,
+    action: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    IterCard(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.padding(32.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(if (inserting) R.string.inserting_fake_records else R.string.insert_fake_records))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IterButton(action, onClick, primary = true, enabled = enabled)
         }
     }
 }

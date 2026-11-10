@@ -176,6 +176,7 @@ internal fun IterButton(
     modifier: Modifier = Modifier,
     size: IterButtonSize = IterButtonSize.MEDIUM,
     primary: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val colors =
         if (primary) {
@@ -195,6 +196,7 @@ internal fun IterButton(
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = size.height),
+        enabled = enabled,
         colors = colors,
         contentPadding = PaddingValues(horizontal = size.height / 2),
     ) {
