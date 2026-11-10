@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Iter</string>
-    <string name="grass_title">잔디</string>
     <string name="debug_menu_title">디버그 메뉴</string>
     <string name="debug_menu_open">디버그 메뉴</string>
     <string name="back">뒤로</string>
