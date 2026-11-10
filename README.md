@@ -20,7 +20,10 @@ Pleos Connect Emulator v2.1.0(Virtual Console 지원 최소 버전)에서 확인
    ./gradlew assembleDebug
    adb install -r app/build/outputs/apk/debug/app-debug.apk
    adb shell am start --user 10 -n io.github.kimyeongbean.iter/.app.MainActivity   # 사용자 10으로 실행 (아래 참고)
-   adb exec-out screencap -p > screen.png   # 지금 화면을 파일로 저장
+   ```
+   화면을 확인할 때는 지금 화면을 파일로 저장합니다. Windows PowerShell 5에서는 `>`가 파일을 깨뜨리니 cmd나 Git Bash에서 실행합니다.
+   ```bash
+   adb exec-out screencap -p > screen.png
    ```
 2. Virtual Console을 엽니다. 에뮬레이터가 띄우는 웹 페이지입니다.
    ```bash
