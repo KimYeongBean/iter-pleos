@@ -46,8 +46,8 @@ internal data class SpeedColorSettings(
     val background: MapBackground = MapBackground.DARK,
     val theme: ArtTheme = ArtTheme.DEFAULT,
 ) {
-    /** What the art panels draw with. */
-    val panel: ThemePanel get() = theme.panel(base, background)
+    /** What the art panels draw with; [dark] is the system theme. */
+    fun panel(dark: Boolean): ThemePanel = theme.panel(base, background, dark)
 
     /** The line colour for a mark on the app background, dark or light as the system is. */
     fun accentArgb(dark: Boolean): Int = theme.accentArgb(base, dark)

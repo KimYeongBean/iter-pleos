@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -148,10 +150,29 @@ private fun ThemeChoice(
     val tileShape = MaterialTheme.shapes.large
     val selectedOutline = MaterialTheme.colorScheme.primary
     val outline = MaterialTheme.colorScheme.outline
-    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ArtTheme.entries.forEach { theme ->
+    val dark = isSystemInDarkTheme()
+    // Plain themes on the first row, advanced themes on the second.
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ArtTheme.entries.groupBy { it.art != null }.values.forEach { row ->
+            ThemeRow(row, settings, onChange, dark, tileShape, selectedOutline, outline)
+        }
+    }
+}
+
+@Composable
+private fun ThemeRow(
+    themes: List<ArtTheme>,
+    settings: SpeedColorSettings,
+    onChange: (SpeedColorSettings) -> Unit,
+    dark: Boolean,
+    tileShape: Shape,
+    selectedOutline: Color,
+    outline: Color,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        themes.forEach { theme ->
             val selected = theme == settings.theme
-            val panel = theme.panel(settings.base, settings.background)
+            val panel = theme.panel(settings.base, settings.background, dark)
             val tileColor by animateColorAsState(Color(panel.argb), tween(COLOR_CHANGE_MS), label = "themeTile")
             val textColor by animateColorAsState(Color(panel.textArgb), tween(COLOR_CHANGE_MS), label = "themeTileText")
             val swatch by animateColorAsState(Color(panel.speedColorBaseArgb), tween(COLOR_CHANGE_MS), label = "themeSwatch")
@@ -270,13 +291,14 @@ private fun SpeedColorPreview(
     settings: SpeedColorSettings,
     modifier: Modifier = Modifier,
 ) {
+    val dark = isSystemInDarkTheme()
     Crossfade(
         targetState = settings,
         animationSpec = tween(COLOR_CHANGE_MS),
         label = "preview",
         modifier = modifier.clip(MaterialTheme.shapes.extraLarge),
     ) { shown ->
-        val panel = shown.panel
+        val panel = shown.panel(dark)
         val baseArgb = panel.speedColorBaseArgb
         val textColor = Color(panel.textArgb)
         Column(

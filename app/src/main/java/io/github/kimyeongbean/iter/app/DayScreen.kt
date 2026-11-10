@@ -109,7 +109,8 @@ internal fun Modifier.dayArtSharedElement(
  * When [playDrawIn], the full day art first grows out of the grass cell, then both draw in drive
  * time order once their data is ready. A tap anywhere skips both to the end. [onDrawInStarted] is
  * called on open, so the draw-in counts as played even when skipped or left early.
- * When [animateRain], the map graph's rain effect falls over and over; a tap does not stop it.
+ * When [animateLoop], the repeating effects (the rain, an advanced theme's own) play over and over;
+ * a tap does not stop them.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -120,7 +121,7 @@ internal fun DayScreen(
     summary: DriveSummary?,
     panel: ThemePanel,
     playDrawIn: Boolean,
-    animateRain: Boolean,
+    animateLoop: Boolean,
     onDrawInStarted: () -> Unit,
     onBack: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -152,7 +153,7 @@ internal fun DayScreen(
             when {
                 dayArt == null -> Unit
                 dayArt.shapes.isEmpty() -> Text(stringResource(R.string.day_art_empty), color = panelText)
-                else -> DayArt(dayArt, panel, Modifier.fillMaxSize()) { artDrawIn.progress.value }
+                else -> DayArt(dayArt, panel, Modifier.fillMaxSize(), animateLoop) { artDrawIn.progress.value }
             }
         }
     }
@@ -165,7 +166,7 @@ internal fun DayScreen(
                 when {
                     route == null -> Unit
                     route.strokes.isEmpty() -> Text(stringResource(R.string.map_graph_no_route), color = panelText)
-                    else -> MapGraph(route, panel, Modifier.fillMaxSize(), animateRain) { routeDrawIn.progress.value }
+                    else -> MapGraph(route, panel, Modifier.fillMaxSize(), animateLoop) { routeDrawIn.progress.value }
                 }
             }
             MapGraphLegend(panel, Modifier.padding(start = 28.dp, end = 28.dp, bottom = 24.dp))
@@ -250,6 +251,13 @@ private fun DayInfo(
             Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = text)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val art = panel.art
+            if (art != null) {
+                LegendSignal.entries.forEach { signal ->
+                    LegendItem(stringResource(signal.label), text) { with(art) { drawLegendSample(signal, panel.dark) } }
+                }
+                return@FlowRow
+            }
             // Each sample is a small day art: the ring sits where the day art draws it. Turn signal is
             // the solid outer ring, wiper the dashed outermost one, low beam the ring at the centre.
             LegendItem(stringResource(R.string.legend_turn_signal), text, RING_SAMPLE_SIZE) { ring(text, radiusFraction = 0.8f) }
@@ -273,6 +281,13 @@ private fun MapGraphLegend(
     val text = Color(panel.textArgb)
     val effects = panel.effects
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val art = panel.art
+        if (art != null) {
+            LegendSignal.entries.forEach { signal ->
+                LegendItem(stringResource(signal.sectionLabel), text) { with(art) { drawLegendSample(signal, panel.dark) } }
+            }
+            return@FlowRow
+        }
         LegendItem(stringResource(R.string.legend_turn_signal_section), text) { band(Color(effects.turnSignalBandArgb)) }
         LegendItem(stringResource(R.string.legend_low_beam_section), text) { band(Color(effects.lowBeamArgb)) }
         LegendItem(stringResource(R.string.legend_wiper_section), text) { rain(Color(effects.rainArgb).copy(alpha = RAIN_ALPHA)) }

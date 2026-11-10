@@ -45,20 +45,21 @@ private const val SCREEN_MOVE_MS = 300
 
 /**
  * While [recorder] has a drive session in progress, only the still "기록 중" screen shows; the record
- * screens open again once it ends. [appScope] runs work that must outlive screens and the activity.
+ * screens open again once it ends. [settings] is what the user picked; [onSettingsChange] keeps a
+ * new pick. [appScope] runs work that must outlive screens and the activity.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun IterApp(
     recordStore: RecordStore,
     recorder: DriveSessionRecorder,
-    speedColorSettingsStore: SpeedColorSettingsStore,
+    settings: SpeedColorSettings,
+    onSettingsChange: (SpeedColorSettings) -> Unit,
     appScope: CoroutineScope,
     showDebugMenu: Boolean,
 ) {
     var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
     var openDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
-    var speedColorSettings by remember(speedColorSettingsStore) { mutableStateOf(speedColorSettingsStore.load()) }
     var grassIntroPlayed by rememberSaveable { mutableStateOf(false) }
     // Dates whose day art already drew in; it draws in once, on the first open.
     var drawnInDates by rememberSaveable { mutableStateOf(emptySet<LocalDate>()) }
@@ -76,7 +77,8 @@ internal fun IterApp(
             recordsVersion++
         }
     }
-    val panel = speedColorSettings.panel
+    val dark = isSystemInDarkTheme()
+    val panel = settings.panel(dark)
     val speedColorBaseArgb = panel.speedColorBaseArgb
     val dayArts = remember(recordStore) { DayArtCache() }
     // A new lambda whenever records or colours change, so screens keyed on it load again.
@@ -94,7 +96,7 @@ internal fun IterApp(
     val inProgress by recorder.inProgress.collectAsState()
     if (driving) {
         // Swapped in without a transition: leaving the record screens stops their animations at once.
-        RecordingScreen(speedColorSettings.accentArgb(isSystemInDarkTheme()), onEnd = if (inProgress) recorder::requestEnd else null)
+        RecordingScreen(settings.accentArgb(dark), onEnd = if (inProgress) recorder::requestEnd else null)
         return
     }
 
@@ -165,7 +167,7 @@ internal fun IterApp(
                         summary = summary,
                         panel = panel,
                         playDrawIn = date !in drawnInDates && !animationsOff,
-                        animateRain = !animationsOff,
+                        animateLoop = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
                         onBack = { screen = Screen.GRASS },
                         sharedTransitionScope = this@SharedTransitionLayout,
@@ -175,11 +177,8 @@ internal fun IterApp(
 
                 Screen.SETTINGS ->
                     SettingsScreen(
-                        settings = speedColorSettings,
-                        onChange = {
-                            speedColorSettings = it
-                            speedColorSettingsStore.save(it)
-                        },
+                        settings = settings,
+                        onChange = onSettingsChange,
                         onBack = { screen = Screen.GRASS },
                     )
 

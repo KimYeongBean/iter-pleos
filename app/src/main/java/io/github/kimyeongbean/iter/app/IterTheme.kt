@@ -146,13 +146,16 @@ private val IterShapes =
         extraLarge = RoundedCornerShape(32.dp),
     )
 
-/** The app theme: Pleos colours, type scale and corners on Material 3. [dark] follows the system. */
+/**
+ * The app theme: [colors] (the Pleos ones, or an advanced theme's), the Pleos type scale and corners
+ * on Material 3. [dark] follows the system.
+ */
 @Composable
 internal fun IterTheme(
     dark: Boolean,
+    colors: IterColors = if (dark) IterDarkColors else IterLightColors,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (dark) IterDarkColors else IterLightColors
     MaterialTheme(
         colorScheme = colors.toColorScheme(dark),
         typography = IterTypography,
