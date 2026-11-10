@@ -131,7 +131,7 @@ internal fun IterApp(
                         loadDayArt = loadDayArt,
                         todaySummary = todaySummary,
                         panel = panel,
-                        accent = Color(speedColorSettings.accentArgb(isSystemInDarkTheme())),
+                        accent = Color(settings.accentArgb(dark)),
                         gridState = grassGridState,
                         playIntro = !grassIntroPlayed,
                         onIntroFinished = { grassIntroPlayed = true },
