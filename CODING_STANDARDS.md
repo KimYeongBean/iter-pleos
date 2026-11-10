@@ -16,3 +16,9 @@
 5. **그림 로직은 결정적.** `:art`는 같은 입력이면 같은 그림 데이터를 냅니다. 현재 시각·난수·기기 설정을 직접 읽지 않고 입력으로 받습니다.
 6. **모듈 밖 공개는 계약에 있는 것만.** `:art`·`:vehicle`에서 `public`은 [docs/interfaces.md](docs/interfaces.md)의 출력에 있는 것에만 붙입니다. 어댑터 입력 타입, 저장 구조 같은 모듈 안 세부는 `internal`입니다. 새로 공개해야 하면 interfaces.md 합의가 먼저입니다.
 7. **공유 규칙은 `:model` 것을 씀.** 하루 기록 주행 순서는 `inDriveOrder()`, 깜빡이 켜짐 판정은 `TurnSignal?.isOn`을 씁니다 ([docs/interfaces.md](docs/interfaces.md) 0번 공유 규칙, #47). 하루 그림과 맵 그래프가 같은 순서·같은 판정을 쓰게 하려는 규칙입니다. 새 공유 규칙이 필요하면 interfaces.md 합의가 먼저입니다.
+8. **그리기 코드는 가볍고 빠짐없이.** `:app`의 그리기 함수(`DrawScope` 안, 테마의 `ThemeArt` 구현)에 해당합니다 (#90~#93 리뷰에서 테마마다 되풀이된 지적, #105).
+   - 반복 연출은 매 프레임 다시 그립니다. 입력(하루 그림 데이터, 경로)에서 나오는 계산(묶기, 평균, 위치 찾기)은 프레임마다 하지 않고 입력이 바뀔 때만 합니다(`LastComputed`).
+   - 크기는 dp(`* density`)나 칸 크기의 비율로 씁니다. px 숫자를 그대로 쓰지 않습니다.
+   - 테마가 같이 쓰는 값과 도우미는 `ThemeArt.kt`·`DayArt.kt`·`MapGraph.kt`의 공용 것을 씁니다(예: `DRAWING_RADIUS_SCALE`, `DRAW_IN_GHOST_ALPHA`, `grownFraction`, `isThumbnail`, `forEachBackdropSpot`, `forEachTurnSignalStart`, `drawSegment`). 같은 뜻의 상수나 식을 테마 파일에 다시 만들지 않습니다.
+   - 샘플 하나짜리 구간(점 하나)도 그립니다. 선만 그리면 그 구간이 사라집니다.
+   - 그려지기 연출이 끝나면(진행 1) 모든 부분이 다 그려져 있어야 합니다.
