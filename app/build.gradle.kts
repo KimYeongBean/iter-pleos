@@ -31,6 +31,14 @@ android {
         // BuildConfig.DEBUG hides the debug menu in release builds.
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            // The screenshot test draws real screens, which read strings and fonts.
+            isIncludeAndroidResources = true
+            // Always write the pictures (app/build/outputs/roborazzi): they are looked at, not compared.
+            all { it.systemProperty("roborazzi.test.record", "true") }
+        }
+    }
 }
 
 kotlin {
@@ -53,4 +61,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }

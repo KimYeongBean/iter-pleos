@@ -29,3 +29,12 @@ jobs:
 
       - name: Build and run JVM unit tests
         run: ./gradlew build --console=plain
+
+      # Pictures of every theme from ThemeScreenshotTest: for looking at, not compared (#104).
+      - name: Upload theme pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-pictures
+          path: app/build/outputs/roborazzi
+          if-no-files-found: ignore
