@@ -3,26 +3,8 @@ package io.github.kimyeongbean.iter.app
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.pow
 
 class SpeedColorBaseTest {
-    /** WCAG 2.x relative luminance of an opaque ARGB colour. */
-    private fun luminance(argb: Int): Double {
-        fun channel(shift: Int): Double {
-            val c = ((argb shr shift) and 0xFF) / 255.0
-            return if (c <= 0.04045) c / 12.92 else ((c + 0.055) / 1.055).pow(2.4)
-        }
-        return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
-    }
-
-    private fun contrast(
-        a: Int,
-        b: Int,
-    ): Double {
-        val (light, dark) = listOf(luminance(a), luminance(b)).sortedDescending()
-        return (light + 0.05) / (dark + 0.05)
-    }
-
     @Test
     fun `contrast helper matches known WCAG values`() {
         assertEquals(21.0, contrast(0xFFFFFFFF.toInt(), 0xFF000000.toInt()), 0.01)

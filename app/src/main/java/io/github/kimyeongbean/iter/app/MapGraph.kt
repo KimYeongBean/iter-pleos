@@ -20,9 +20,8 @@ private const val ROUTE_MARGIN = 0.08f
 /** Line and turn signal band widths, as shares of the box side. */
 private const val LINE_WIDTH = 0.012f
 private const val TURN_SIGNAL_BAND_WIDTH = 0.05f
-private const val TURN_SIGNAL_BAND_ALPHA = 0.25f
 
-/** Low beam shade: a wide night band, as a share of the box side, behind the other bands. */
+/** Low beam band: a wide night band, as a share of the box side, behind the other bands. */
 private const val LOW_BEAM_SHADE_WIDTH = 0.09f
 
 /** Rain effect: one slow fall per cycle (Notion 디자인 '애니메이션·전환 기준': 천천히 반복). */
@@ -35,12 +34,11 @@ private const val RAIN_STREAK_WIDTH = 0.004f
 
 /** Rain streaks lean a little, like rain in the wind: sideways shift per unit of fall. */
 private const val RAIN_SLANT = 0.25f
-private const val RAIN_ALPHA = 0.7f
 
 /**
  * Map graph (GLOSSARY: 맵 그래프): [route] as a speed-coloured line on [background], no map.
  * Stretches with the turn signal on get a band of another colour behind the line, stretches with
- * the low beam on a wider dark shade, and stretches with the wiper on falling rain. Missing
+ * the low beam on a wider night band ([mapEffectColors]), and stretches with the wiper on falling rain. Missing
  * signals (null) get no effect.
  * [drawInProgress] (0 to 1, drive time) is read only while drawing, so animating it redraws
  * without recomposing.
@@ -69,9 +67,10 @@ internal fun MapGraph(
     }
     val backgroundColor = Color(background.argb)
     // Opaque colours: round caps of see-through segments would otherwise overlap into beads.
-    val bandColor = Color(background.textArgb).copy(alpha = TURN_SIGNAL_BAND_ALPHA).compositeOver(backgroundColor)
-    val shadeColor = Color(background.lowBeamShadeArgb)
-    val rainColor = Color(background.textArgb)
+    val effectColors = background.mapEffectColors
+    val bandColor = Color(effectColors.turnSignalBandArgb)
+    val shadeColor = Color(effectColors.lowBeamArgb)
+    val rainColor = Color(effectColors.rainArgb)
     Canvas(modifier) {
         val progress = drawInProgress()
         val side = size.minDimension * (1 - 2 * ROUTE_MARGIN)
@@ -108,17 +107,6 @@ internal fun MapGraph(
         }
     }
 }
-
-/**
- * Low beam shade colour per background: darker than the background and night blue, so it still
- * shows on the dark background, where black would barely differ.
- */
-private val MapBackground.lowBeamShadeArgb: Int
-    get() =
-        when (this) {
-            MapBackground.DARK -> 0xFF0C1322.toInt()
-            MapBackground.LIGHT -> 0xFFB8BECB.toInt()
-        }
 
 /** Calls [action] for each segment with at least one end where [signalOn]. */
 private inline fun MapRoute.forEachSegmentTouching(
