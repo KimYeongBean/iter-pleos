@@ -36,7 +36,7 @@ private const val RAIN_STREAK_WIDTH = 0.004f
 private const val RAIN_SLANT = 0.25f
 
 /**
- * Map graph (GLOSSARY: 맵 그래프): [route] as a speed-coloured line on [background], no map.
+ * Map graph (GLOSSARY: 맵 그래프): [route] as a speed-coloured line on [panel], no map.
  * Stretches with the turn signal on get a band of another colour behind the line, stretches with
  * the low beam on a wider night band ([mapEffectColors]), and stretches with the wiper on falling rain. Missing
  * signals (null) get no effect.
@@ -50,7 +50,7 @@ private const val RAIN_SLANT = 0.25f
 @Composable
 internal fun MapGraph(
     route: MapRoute,
-    background: MapBackground,
+    panel: ThemePanel,
     modifier: Modifier = Modifier,
     animateRain: Boolean = false,
     drawInProgress: () -> Float = { 1f },
@@ -65,9 +65,9 @@ internal fun MapGraph(
             }
         }
     }
-    val backgroundColor = Color(background.argb)
+    val backgroundColor = Color(panel.argb)
     // Opaque colours: round caps of see-through segments would otherwise overlap into beads.
-    val effectColors = background.mapEffectColors
+    val effectColors = panel.effects
     val bandColor = Color(effectColors.turnSignalBandArgb)
     val shadeColor = Color(effectColors.lowBeamArgb)
     val rainColor = Color(effectColors.rainArgb)

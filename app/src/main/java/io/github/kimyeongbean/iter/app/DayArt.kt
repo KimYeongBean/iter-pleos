@@ -34,18 +34,18 @@ internal fun DayArtShape.drawnFraction(progress: Float): Float {
 }
 
 /**
- * Day art (GLOSSARY: 하루 그림) drawn from [data] on [background]. The grass thumbnail and the big
+ * Day art (GLOSSARY: 하루 그림) drawn from [data] on [panel]. The grass thumbnail and the big
  * day art use this same drawing. [drawInProgress] (0 to 1, drive time) is read only while drawing,
  * so animating it redraws without recomposing.
  */
 @Composable
 internal fun DayArt(
     data: DayArtData,
-    background: MapBackground,
+    panel: ThemePanel,
     modifier: Modifier = Modifier,
     drawInProgress: () -> Float = { 1f },
 ) {
-    val patternColor = Color(background.textArgb)
+    val patternColor = Color(panel.textArgb)
     Canvas(modifier) {
         val progress = drawInProgress()
         data.shapes.forEach { shape ->

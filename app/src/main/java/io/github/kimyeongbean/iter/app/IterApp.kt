@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,8 +76,8 @@ internal fun IterApp(
             recordsVersion++
         }
     }
-    val background = speedColorSettings.background
-    val speedColorBaseArgb = speedColorSettings.base.argbOn(background)
+    val panel = speedColorSettings.panel
+    val speedColorBaseArgb = panel.speedColorBaseArgb
     val dayArts = remember(recordStore) { DayArtCache() }
     // A new lambda whenever records or colours change, so screens keyed on it load again.
     val loadDayArt: suspend (LocalDate) -> Unit =
@@ -93,7 +94,7 @@ internal fun IterApp(
     val inProgress by recorder.inProgress.collectAsState()
     if (driving) {
         // Swapped in without a transition: leaving the record screens stops their animations at once.
-        RecordingScreen(speedColorSettings.base, onEnd = if (inProgress) recorder::requestEnd else null)
+        RecordingScreen(speedColorSettings.accentArgb(isSystemInDarkTheme()), onEnd = if (inProgress) recorder::requestEnd else null)
         return
     }
 
@@ -127,7 +128,7 @@ internal fun IterApp(
                         dayArt = { dayArts[it] },
                         loadDayArt = loadDayArt,
                         todaySummary = todaySummary,
-                        background = background,
+                        panel = panel,
                         accent = Color(speedColorBaseArgb),
                         gridState = grassGridState,
                         playIntro = !grassIntroPlayed,
@@ -162,8 +163,7 @@ internal fun IterApp(
                         dayArt = dayArts[date],
                         route = route,
                         summary = summary,
-                        background = background,
-                        speedColorBaseArgb = speedColorBaseArgb,
+                        panel = panel,
                         playDrawIn = date !in drawnInDates && !animationsOff,
                         animateRain = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },

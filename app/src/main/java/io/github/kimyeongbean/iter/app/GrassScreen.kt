@@ -78,7 +78,7 @@ private const val INTRO_CELLS = 5 * 7
 
 /**
  * Grass: the today card and one cell per day. A day with a day record shows its day art thumbnail
- * on [background]; tapping it calls [onOpenDay]. Today's cell is ringed in [accent], the speed
+ * on [panel]; tapping it calls [onOpenDay]. Today's cell is ringed in [accent], the speed
  * colour. [recordedDates] is null while loading; [todaySummary] is null when today has no day
  * record. [onOpenDebugMenu] is null when the debug menu is hidden.
  */
@@ -90,7 +90,7 @@ internal fun GrassScreen(
     dayArt: (LocalDate) -> DayArtData?,
     loadDayArt: suspend (LocalDate) -> Unit,
     todaySummary: DriveSummary?,
-    background: MapBackground,
+    panel: ThemePanel,
     accent: Color,
     gridState: LazyGridState,
     playIntro: Boolean,
@@ -121,7 +121,7 @@ internal fun GrassScreen(
                     recorded = todayRecorded,
                     dayArt = dayArt(today),
                     summary = todaySummary,
-                    background = background,
+                    panel = panel,
                     wide = wide,
                     onOpen = {
                         openedFromTodayCard = true
@@ -137,7 +137,7 @@ internal fun GrassScreen(
                     todayCellGrows = !openedFromTodayCard,
                     dayArt = dayArt,
                     loadDayArt = loadDayArt,
-                    background = background,
+                    panel = panel,
                     accent = accent,
                     wide = wide,
                     gridState = gridState,
@@ -225,7 +225,7 @@ private fun TodayCard(
     recorded: Boolean,
     dayArt: DayArtData?,
     summary: DriveSummary?,
-    background: MapBackground,
+    panel: ThemePanel,
     wide: Boolean,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
@@ -243,8 +243,8 @@ private fun TodayCard(
             else -> stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText)
         }
     val art: @Composable (Modifier) -> Unit = { artModifier ->
-        Box(artModifier.aspectRatio(1f).clip(MaterialTheme.shapes.large).background(Color(background.argb))) {
-            if (dayArt != null) DayArt(dayArt, background, Modifier.fillMaxSize())
+        Box(artModifier.aspectRatio(1f).clip(MaterialTheme.shapes.large).background(Color(panel.argb))) {
+            if (dayArt != null) DayArt(dayArt, panel, Modifier.fillMaxSize())
         }
     }
     val open = if (recorded) Modifier.clickable(onClickLabel = openLabel, onClick = onOpen) else Modifier
@@ -285,7 +285,7 @@ private fun GrassGrid(
     todayCellGrows: Boolean,
     dayArt: (LocalDate) -> DayArtData?,
     loadDayArt: suspend (LocalDate) -> Unit,
-    background: MapBackground,
+    panel: ThemePanel,
     accent: Color,
     wide: Boolean,
     gridState: LazyGridState,
@@ -321,8 +321,8 @@ private fun GrassGrid(
     val introFirstIndex = (cells.size - INTRO_CELLS).coerceAtLeast(0)
     val stepMs = (INTRO_TOTAL_MS - CELL_FADE_MS).toFloat() / (cells.size - introFirstIndex - 1).coerceAtLeast(1)
     val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
-    val recordedBackground = Color(background.argb)
-    val recordedText = Color(background.textArgb)
+    val recordedBackground = Color(panel.argb)
+    val recordedText = Color(panel.textArgb)
     val emptyOutline = MaterialTheme.colorScheme.secondaryContainer
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     val cellShape = if (wide) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
@@ -397,7 +397,7 @@ private fun GrassGrid(
                         .clickable { onOpenDay(cell.date) }
                         .semantics { contentDescription = description },
                 ) {
-                    dayArt(cell.date)?.let { DayArt(it, background, Modifier.fillMaxSize()) }
+                    dayArt(cell.date)?.let { DayArt(it, panel, Modifier.fillMaxSize()) }
                     CellLabel(label, recordedText, labelPadding)
                 }
             }
