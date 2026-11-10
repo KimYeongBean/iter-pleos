@@ -41,7 +41,7 @@ class DriveSessionRecorderTest {
     private val nov9 = LocalDate.of(2026, 11, 9)
     private val openStores = mutableListOf<RecordStore>()
 
-    private fun openStore() = RecordStore.open(context, zone).also { openStores += it }
+    private fun openStore() = RecordStore.open(context) { zone }.also { openStores += it }
 
     @After
     fun closeStores() = openStores.forEach { it.close() }

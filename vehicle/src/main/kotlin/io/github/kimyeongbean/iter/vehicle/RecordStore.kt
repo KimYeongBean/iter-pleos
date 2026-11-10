@@ -16,11 +16,12 @@ import java.time.ZoneId
 /**
  * On-device store of drive sessions (GLOSSARY: 기록 저장소).
  * Real records and fake drive data are saved and read the same way (ADR 0001).
- * A day record is every drive session whose start falls on that date in [zone].
+ * A day record is every drive session whose start falls on that date in the time zone [zone] gives
+ * when the session is saved, so a time zone change after opening applies to new sessions (#65).
  */
 public class RecordStore private constructor(
     private val database: RecordDatabase,
-    private val zone: ZoneId,
+    private val zone: () -> ZoneId,
 ) : Closeable {
     private val dao = database.recordDao()
 
@@ -56,7 +57,7 @@ public class RecordStore private constructor(
         dayEpochDay =
         Instant
             .ofEpochMilli(startEpochMs)
-            .atZone(zone)
+            .atZone(zone())
             .toLocalDate()
             .toEpochDay(),
     )
@@ -72,10 +73,10 @@ public class RecordStore private constructor(
     public companion object {
         private const val DATABASE_NAME = "records.db"
 
-        /** Opens the store on the device. [zone] decides which date a session belongs to. */
+        /** Opens the store on the device. [zone], read at each save, decides which date a session belongs to. */
         public fun open(
             context: Context,
-            zone: ZoneId = ZoneId.systemDefault(),
+            zone: () -> ZoneId = ZoneId::systemDefault,
         ): RecordStore {
             val database =
                 Room.databaseBuilder(context.applicationContext, RecordDatabase::class.java, DATABASE_NAME).build()

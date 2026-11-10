@@ -24,7 +24,7 @@ class RecordStoreTest {
     private val zone = ZoneId.of("Asia/Seoul")
     private val openStores = mutableListOf<RecordStore>()
 
-    private fun openStore() = RecordStore.open(context, zone).also { openStores += it }
+    private fun openStore() = RecordStore.open(context) { zone }.also { openStores += it }
 
     @After
     fun closeStores() = openStores.forEach { it.close() }
@@ -60,6 +60,22 @@ class RecordStoreTest {
     )
 
     private val nov9 = LocalDate.of(2026, 11, 9)
+
+    @Test
+    fun `a time zone change after opening puts new sessions on the new zone's date, saved ones stay`() = runBlocking {
+        var current = ZoneId.of("America/Los_Angeles")
+        val store = RecordStore.open(context) { current }.also { openStores += it }
+        // 2026-11-10 12:14 in Seoul is still 11-09 in Los Angeles.
+        val before = session(at(nov9.plusDays(1), 12, 14))
+        store.save(before)
+
+        current = zone
+        val after = session(at(nov9.plusDays(1), 12, 30))
+        store.save(after)
+
+        assertEquals(listOf(before), store.dayRecord(nov9))
+        assertEquals(listOf(after), store.dayRecord(nov9.plusDays(1)))
+    }
 
     @Test
     fun `saved session comes back as the day record of its start date`() = runBlocking {
