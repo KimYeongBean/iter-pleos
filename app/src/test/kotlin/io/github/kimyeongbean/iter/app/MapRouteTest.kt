@@ -3,6 +3,7 @@ package io.github.kimyeongbean.iter.app
 import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.DriveSessionSource
 import io.github.kimyeongbean.iter.model.GeoPoint
+import io.github.kimyeongbean.iter.model.SAMPLE_INTERVAL_MS
 import io.github.kimyeongbean.iter.model.Sample
 import io.github.kimyeongbean.iter.model.TurnSignal
 import org.junit.Assert.assertEquals
@@ -19,7 +20,7 @@ class MapRouteTest {
         startEpochMs: Long = 0L,
     ) = Sample(
         // A minute apart, so the small test steps (about 100 m) stay at a drivable speed (#64).
-        timeEpochMs = startEpochMs + minute * 60_000L,
+        timeEpochMs = startEpochMs + minute * 60 * SAMPLE_INTERVAL_MS,
         speedKmh = speedKmh,
         turnSignal = null,
         wiperOn = null,

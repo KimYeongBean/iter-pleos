@@ -22,6 +22,8 @@ private const val MAX_PLAUSIBLE_SPEED_KMH = 300.0
 
 private const val EARTH_RADIUS_KM = 6371.0
 
+private const val MS_PER_HOUR = 3_600_000.0
+
 /**
  * Map graph route (GLOSSARY: 맵 그래프) of a day record, ready to draw: no map, only the line.
  * Coordinates fit the unit square (0 to 1) with north up, keeping the route's shape, centred.
@@ -125,6 +127,7 @@ internal fun mapRoute(
  * Leaves out located samples too far from every located neighbour to have been driven to in time
  * (an old fix when GPS starts, a single wrong fix). With fewer than three locations nothing is left
  * out: there is no telling which one is wrong. Only for drawing; saved samples stay as they are.
+ * Two or more wrong fixes in a row are close to each other, so they stay.
  */
 private fun List<Sample>.withoutLocationJumps(): List<Sample> {
     val located = filter { it.location != null }
@@ -145,7 +148,9 @@ private fun tooFastBetween(
     val lat = Math.toRadians((from.latitudeDeg + to.latitudeDeg) / 2)
     val northKm = Math.toRadians(to.latitudeDeg - from.latitudeDeg) * EARTH_RADIUS_KM
     val eastKm = Math.toRadians(to.longitudeDeg - from.longitudeDeg) * EARTH_RADIUS_KM * cos(lat)
-    val hours = abs(b.timeEpochMs - a.timeEpochMs) / 3_600_000.0
+    val hours = abs(b.timeEpochMs - a.timeEpochMs) / MS_PER_HOUR
+    // Two fixes at the same time give no speed to judge by.
+    if (hours == 0.0) return false
     return hypot(northKm, eastKm) > MAX_PLAUSIBLE_SPEED_KMH * hours
 }
 
