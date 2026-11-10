@@ -29,6 +29,12 @@ class MapRouteTest {
         location = location,
     )
 
+    private fun point(
+        x: Float,
+        y: Float,
+        timePosition: Float = 0f,
+    ) = RoutePoint(x, y, 0, timePosition, turnSignalOn = false, wiperOn = false, lowBeamOn = false)
+
     private fun session(
         startEpochMs: Long,
         samples: List<Sample>,
@@ -123,8 +129,68 @@ class MapRouteTest {
     }
 
     @Test
+    fun `wiper and low beam on mark the point and a missing signal does not`() {
+        val signals = listOf(true, false, null)
+        val day =
+            listOf(
+                session(
+                    0L,
+                    signals.mapIndexed { i, s ->
+                        sample(i, GeoPoint(0.0, i * 0.001)).copy(wiperOn = s, lowBeamOn = signals[(i + 1) % 3])
+                    },
+                ),
+            )
+
+        val points = mapRoute(day, base).strokes.single()
+
+        assertEquals(listOf(true, false, false), points.map { it.wiperOn })
+        assertEquals(listOf(false, false, true), points.map { it.lowBeamOn })
+    }
+
+    @Test
+    fun `rain drops sit evenly along segments touching a wiper sample, each wiper stretch starting with one`() {
+        // Nine samples east along the equator, 1/8 of the width apart. Wiper on at sample 0 and
+        // sample 5 only, so the stretches are x 0 to 1/8 and x 4/8 to 6/8; null is off.
+        val wipers = listOf(true, false, false, null, false, true, false, false, false)
+        val day = listOf(session(0L, wipers.mapIndexed { i, w -> sample(i, GeoPoint(0.0, i * 0.001)).copy(wiperOn = w) }))
+
+        val drops = mapRoute(day, base).rainDrops
+
+        val expectedX = listOf(0f, 0.04f, 0.08f, 0.12f) + listOf(0.5f, 0.54f, 0.58f, 0.62f, 0.66f, 0.70f, 0.74f)
+        assertEquals(expectedX.size, drops.size)
+        drops.zip(expectedX).forEach { (drop, x) ->
+            assertEquals(x, drop.x, 1e-4f)
+            assertEquals(0.5f, drop.y, 1e-6f)
+            // Time runs evenly from west to east here, so the time position equals x.
+            assertEquals(x, drop.timePosition, 1e-4f)
+        }
+        // Neighbouring drops fall out of step.
+        assertTrue(drops.zipWithNext().all { (a, b) -> a.fallOffset != b.fallOffset })
+    }
+
+    @Test
+    fun `a day without wiper on has no rain`() {
+        val day = listOf(session(0L, List(4) { sample(it, GeoPoint(0.0, it * 0.001)).copy(wiperOn = if (it % 2 == 0) false else null) }))
+
+        assertTrue(mapRoute(day, base).rainDrops.isEmpty())
+    }
+
+    @Test
+    fun `a rain drop falls through its window once per cycle, fading in and out`() {
+        val drop = RainDrop(0.5f, 0.5f, timePosition = 0f, fallOffset = 0.25f)
+
+        assertEquals(0.25f, rainFall(drop, phase = 0f), 1e-6f)
+        assertEquals(0.75f, rainFall(drop, phase = 0.5f), 1e-6f)
+        // Past the bottom it starts again at the top.
+        assertEquals(0.05f, rainFall(drop, phase = 0.8f), 1e-5f)
+        assertEquals(0f, rainAlpha(0f), 1e-6f)
+        assertEquals(1f, rainAlpha(0.5f), 1e-6f)
+        assertEquals(0f, rainAlpha(1f), 1e-6f)
+    }
+
+    @Test
     fun `the draw-in draws a segment while it passes the segment's stretch of time`() {
-        val from = RoutePoint(0f, 0f, 0, timePosition = 0.25f, turnSignalOn = false)
+        val from = point(0f, 0f, timePosition = 0.25f)
         val to = from.copy(timePosition = 0.5f)
 
         assertEquals(0f, segmentDrawnFraction(from, to, progress = 0.2f), 1e-6f)
