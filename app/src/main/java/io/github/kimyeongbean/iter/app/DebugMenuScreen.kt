@@ -31,10 +31,14 @@ import java.time.ZoneId
 /** Days of fake drive data that "가짜 기록 넣기" fills, ending today. */
 private const val FAKE_DRIVE_DATA_DAYS = 28
 
-/** Debug menu (development only, hidden in release builds). */
+/**
+ * Debug menu (development only, hidden in release builds). [onStartRecording] asks for a manual
+ * drive session start (for cars without a gear signal); the recording screen then covers this one.
+ */
 @Composable
 internal fun DebugMenuScreen(
     recordStore: RecordStore,
+    onStartRecording: () -> Unit,
     // Outlives this screen and the activity, so leaving mid-insert does not cancel the save.
     scope: CoroutineScope,
     onBack: () -> Unit,
@@ -42,6 +46,7 @@ internal fun DebugMenuScreen(
     // Application context: the toast may show after the activity is gone.
     val context = LocalContext.current.applicationContext
     var inserting by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(48.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -70,6 +75,30 @@ internal fun DebugMenuScreen(
                             context.getString(R.string.fake_records_inserted, sessions.size),
                             Toast.LENGTH_SHORT,
                         ).show()
+                }
+            },
+        )
+        DebugMenuItem(
+            title = stringResource(R.string.start_recording),
+            hint = stringResource(R.string.start_recording_hint),
+            action = stringResource(R.string.start_recording_action),
+            enabled = true,
+            onClick = onStartRecording,
+        )
+        DebugMenuItem(
+            title = stringResource(R.string.clear_records),
+            hint = stringResource(R.string.clear_records_hint),
+            action = stringResource(if (clearing) R.string.clearing_records else R.string.clear_records_action),
+            enabled = !clearing,
+            onClick = {
+                clearing = true
+                scope.launch {
+                    try {
+                        recordStore.deleteAll()
+                    } finally {
+                        clearing = false
+                    }
+                    Toast.makeText(context, context.getString(R.string.records_cleared), Toast.LENGTH_SHORT).show()
                 }
             },
         )

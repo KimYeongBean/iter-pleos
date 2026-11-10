@@ -155,6 +155,19 @@ class RecordStoreTest {
     }
 
     @Test
+    fun `deleting all leaves no dates and empty day records`() = runBlocking {
+        val store = openStore()
+        val day = LocalDate.of(2026, 11, 9)
+        store.save(session(at(day, 9)))
+        store.save(session(at(day.plusDays(1), 9), source = DriveSessionSource.FAKE_DRIVE_DATA))
+
+        store.deleteAll()
+
+        assertEquals(emptyList<LocalDate>(), store.recordedDates().first())
+        assertEquals(emptyList<DriveSession>(), store.dayRecord(day))
+    }
+
+    @Test
     fun `records survive closing and reopening the store`() = runBlocking {
         val saved = session(at(nov9, 8))
         openStore().apply {

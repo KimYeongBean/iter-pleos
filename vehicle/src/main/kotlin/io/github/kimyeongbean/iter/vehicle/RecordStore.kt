@@ -43,6 +43,9 @@ public class RecordStore private constructor(
         newSamples: List<Sample>,
     ) = dao.appendSamples(sessionEntity(startEpochMs, endEpochMs = null, source), newSamples.map { it.toEntity() })
 
+    /** Deletes every drive session, real records and fake drive data alike (debug menu, #85). */
+    public suspend fun deleteAll(): Unit = dao.deleteAllSessions()
+
     /** Ends sessions left unfinished (app killed mid-drive) at their last saved sample. */
     internal suspend fun closeUnfinishedSessions() = dao.closeUnfinishedSessions()
 

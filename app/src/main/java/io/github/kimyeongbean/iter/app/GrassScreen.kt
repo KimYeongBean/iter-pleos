@@ -80,8 +80,7 @@ private const val INTRO_CELLS = 5 * 7
  * Grass: the today card and one cell per day. A day with a day record shows its day art thumbnail
  * on [background]; tapping it calls [onOpenDay]. Today's cell is ringed in [accent], the speed
  * colour. [recordedDates] is null while loading; [todaySummary] is null when today has no day
- * record. [onStartRecording] asks for a manual drive session start (for cars without a gear signal).
- * [onOpenDebugMenu] is null when the debug menu is hidden.
+ * record. [onOpenDebugMenu] is null when the debug menu is hidden.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -97,7 +96,6 @@ internal fun GrassScreen(
     playIntro: Boolean,
     onIntroFinished: () -> Unit,
     onOpenDay: (LocalDate) -> Unit,
-    onStartRecording: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDebugMenu: (() -> Unit)?,
     sharedTransitionScope: SharedTransitionScope,
@@ -110,7 +108,7 @@ internal fun GrassScreen(
             Modifier.fillMaxSize().padding(if (wide) 48.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
-            GrassHeader(wide, onStartRecording, onOpenSettings, onOpenDebugMenu)
+            GrassHeader(wide, onOpenSettings, onOpenDebugMenu)
             if (recordedDates == null) return@Column
             val todayRecorded = today in recordedDates
             LaunchedEffect(loadDayArt, today, todayRecorded) { if (todayRecorded) loadDayArt(today) }
@@ -167,7 +165,6 @@ internal fun GrassScreen(
 @Composable
 private fun GrassHeader(
     wide: Boolean,
-    onStartRecording: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDebugMenu: (() -> Unit)?,
 ) {
@@ -185,7 +182,6 @@ private fun GrassHeader(
         if (onOpenDebugMenu != null) {
             TextButton(onClick = onOpenDebugMenu) { Text(stringResource(R.string.debug_menu_open)) }
         }
-        IterButton(stringResource(R.string.start_recording), onStartRecording, size = buttonSize)
         SettingsButton(buttonSize.height, onOpenSettings)
     }
 }
