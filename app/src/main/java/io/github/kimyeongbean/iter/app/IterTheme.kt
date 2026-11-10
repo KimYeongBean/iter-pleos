@@ -69,7 +69,7 @@ internal val IterDarkColors =
         onPrimaryArgb = 0xFF131417.toInt(),
     )
 
-private fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
+internal fun IterColors.toColorScheme(dark: Boolean): ColorScheme {
     val background = Color(backgroundArgb)
     val card = Color(cardArgb)
     val cardHigh = Color(cardHighArgb)

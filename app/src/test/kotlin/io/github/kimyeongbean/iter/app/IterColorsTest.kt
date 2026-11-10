@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,6 +22,52 @@ class IterColorsTest {
                 ).forEach { (label, colours) ->
                     val (text, ground) = colours
                     val ratio = contrast(text, ground)
+                    assertTrue("$theme, $label: $ratio", ratio >= 4.5)
+                }
+            }
+        }
+    }
+
+    /** Also covers the Material defaults the theme leaves as they are, such as error (#79). */
+    @Test
+    fun `every colour scheme content colour has at least 4_5 to 1 contrast on its ground`() {
+        mapOf(
+            "light" to IterLightColors.toColorScheme(dark = false),
+            "dark" to IterDarkColors.toColorScheme(dark = true),
+        ).forEach { (theme, scheme) ->
+            with(scheme) {
+                val surfaces =
+                    mapOf(
+                        "surface" to surface,
+                        "surfaceVariant" to surfaceVariant,
+                        "surfaceContainerLowest" to surfaceContainerLowest,
+                        "surfaceContainerLow" to surfaceContainerLow,
+                        "surfaceContainer" to surfaceContainer,
+                        "surfaceContainerHigh" to surfaceContainerHigh,
+                        "surfaceContainerHighest" to surfaceContainerHighest,
+                    )
+                val pairs =
+                    mapOf(
+                        "onBackground on background" to (onBackground to background),
+                        "onPrimary on primary" to (onPrimary to primary),
+                        "onPrimaryContainer on primaryContainer" to (onPrimaryContainer to primaryContainer),
+                        "onSecondary on secondary" to (onSecondary to secondary),
+                        "onSecondaryContainer on secondaryContainer" to (onSecondaryContainer to secondaryContainer),
+                        "onTertiary on tertiary" to (onTertiary to tertiary),
+                        "onTertiaryContainer on tertiaryContainer" to (onTertiaryContainer to tertiaryContainer),
+                        "onError on error" to (onError to error),
+                        "onErrorContainer on errorContainer" to (onErrorContainer to errorContainer),
+                        "inverseOnSurface on inverseSurface" to (inverseOnSurface to inverseSurface),
+                    ) +
+                        surfaces.flatMap { (name, ground) ->
+                            listOf(
+                                "onSurface on $name" to (onSurface to ground),
+                                "onSurfaceVariant on $name" to (onSurfaceVariant to ground),
+                            )
+                        }
+                pairs.forEach { (label, colours) ->
+                    val (content, ground) = colours
+                    val ratio = contrast(content.toArgb(), ground.toArgb())
                     assertTrue("$theme, $label: $ratio", ratio >= 4.5)
                 }
             }
