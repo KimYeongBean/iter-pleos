@@ -17,6 +17,11 @@ class SpeedColorSettingsStoreTest {
     }
 
     @Test
+    fun `the garden theme before anything is chosen`() {
+        assertEquals(ArtTheme.GARDEN, SpeedColorSettingsStore(context).load().theme)
+    }
+
+    @Test
     fun `chosen base colour and background survive a new store instance`() {
         val chosen = SpeedColorSettings(SpeedColorBase.CYAN, MapBackground.LIGHT)
 

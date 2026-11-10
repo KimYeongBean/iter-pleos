@@ -60,11 +60,14 @@ internal enum class ScreenMode(
     }
 }
 
-/** What the user picked in settings. [base] and [background] count only for [ArtTheme.DEFAULT]. */
+/**
+ * What the user picked in settings. [base] and [background] count only for [ArtTheme.DEFAULT].
+ * Before anything is picked the theme is the garden (#109).
+ */
 internal data class SpeedColorSettings(
     val base: SpeedColorBase = SpeedColorBase.AMBER,
     val background: MapBackground = MapBackground.DARK,
-    val theme: ArtTheme = ArtTheme.DEFAULT,
+    val theme: ArtTheme = ArtTheme.GARDEN,
     val screenMode: ScreenMode = ScreenMode.SYSTEM,
 ) {
     /** What the art panels draw with; [dark] is whether the app shows dark. */
@@ -82,10 +85,12 @@ internal class SpeedColorSettingsStore(
 
     fun load(): SpeedColorSettings {
         val defaults = SpeedColorSettings()
+        // Colours saved before themes existed were picked for the default theme: keep showing them.
+        val themeWhenNoneSaved = if (prefs.contains(KEY_BASE)) ArtTheme.DEFAULT else defaults.theme
         return SpeedColorSettings(
             base = enumOrNull<SpeedColorBase>(prefs.getString(KEY_BASE, null)) ?: defaults.base,
             background = enumOrNull<MapBackground>(prefs.getString(KEY_BACKGROUND, null)) ?: defaults.background,
-            theme = enumOrNull<ArtTheme>(prefs.getString(KEY_THEME, null)) ?: defaults.theme,
+            theme = enumOrNull<ArtTheme>(prefs.getString(KEY_THEME, null)) ?: themeWhenNoneSaved,
             screenMode = enumOrNull<ScreenMode>(prefs.getString(KEY_SCREEN_MODE, null)) ?: defaults.screenMode,
         )
     }
