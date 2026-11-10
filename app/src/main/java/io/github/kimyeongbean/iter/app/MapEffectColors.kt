@@ -9,7 +9,7 @@ internal const val RAIN_ALPHA = 0.7f
  * Map graph effect colours on one background, as ARGB with no Compose types, so tests can check
  * their contrast (#56). The bands are opaque; [rainArgb] is drawn see-through, at most [RAIN_ALPHA].
  */
-internal class MapEffectColors(
+internal data class MapEffectColors(
     val turnSignalBandArgb: Int,
     val lowBeamArgb: Int,
     val rainArgb: Int,

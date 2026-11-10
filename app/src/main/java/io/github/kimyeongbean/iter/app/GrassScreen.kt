@@ -78,8 +78,8 @@ private const val INTRO_CELLS = 5 * 7
 
 /**
  * Grass: the today card and one cell per day. A day with a day record shows its day art thumbnail
- * on [panel]; tapping it calls [onOpenDay]. Today's cell is ringed in [accent], the speed
- * colour. [recordedDates] is null while loading; [todaySummary] is null when today has no day
+ * on [panel]; tapping it calls [onOpenDay]. Today's cell is ringed in [accent], the theme's
+ * line colour for the app background. [recordedDates] is null while loading; [todaySummary] is null when today has no day
  * record. [onOpenDebugMenu] is null when the debug menu is hidden.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)

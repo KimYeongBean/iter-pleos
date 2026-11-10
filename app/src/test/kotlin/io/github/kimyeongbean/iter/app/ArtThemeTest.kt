@@ -35,8 +35,7 @@ class ArtThemeTest {
             val one = theme.panel(SpeedColorBase.AMBER, MapBackground.DARK, dark = false)
             val other = theme.panel(SpeedColorBase.CYAN, MapBackground.LIGHT, dark = false)
 
-            assertEquals("$theme ground", one.argb, other.argb)
-            assertEquals("$theme line", one.speedColorBaseArgb, other.speedColorBaseArgb)
+            assertEquals("$theme", one, other)
         }
     }
 
