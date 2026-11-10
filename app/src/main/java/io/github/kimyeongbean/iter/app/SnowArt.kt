@@ -1,5 +1,7 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -7,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.DayArtPattern
 import io.github.kimyeongbean.iter.art.DayArtShape
@@ -49,6 +52,16 @@ private const val GUST_SECONDS = 2f
 
 /** One backdrop speck per square of this side, in dp. */
 private const val BACKDROP_CELL_DP = 80f
+
+/** Splash: the arms grow over this first share of the draw-in; a twig takes this share to sprout. */
+private const val SPLASH_ARM_SPAN = 0.6f
+private const val SPLASH_TWIG_SPAN = 0.4f
+
+/** Splash: twig pairs on each arm, as where they leave the arm to how long they are, in arm lengths. */
+private val SPLASH_TWIGS = listOf(0.35f to 0.3f, 0.58f to 0.24f, 0.8f to 0.15f)
+
+/** Splash: the crystal turns this many degrees to its resting place while it grows. */
+private const val SPLASH_TURN_DEG = 30f
 
 /**
  * Snow crystal (눈 결정): the day is a six-armed crystal, the route two wheel tracks, on a snow
@@ -391,6 +404,40 @@ internal object SnowArt : ThemeArt {
             drawCircle(Color(p.colors.cardArgb), side * 0.009f, frame.at(last))
         }
         drawSnowfall(Color(p.snowfallArgb), loopSeconds, MAP_GRAPH_FLAKES)
+    }
+
+    /** A crystal grows from the middle: six arms run out, twigs sprout along them, and it turns to rest. */
+    override fun DrawScope.drawSplash(
+        dark: Boolean,
+        progress: Float,
+    ) {
+        val p = palette(dark)
+        val side = size.minDimension
+        val armLength = side * 0.44f
+        val armWidth = side * 0.026f
+        val armGrown = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_ARM_SPAN))
+        rotate(degrees = -SPLASH_TURN_DEG * (1 - FastOutSlowInEasing.transform(progress))) {
+            // Outlines first, highlights on top.
+            listOf(Color(p.outerFastArgb) to armWidth, Color(p.innerFastArgb) to armWidth * 0.42f).forEach { (color, width) ->
+                for (arm in 0 until ARMS) {
+                    val armRad = (-PI / 2 + arm * 2 * PI / ARMS).toFloat()
+                    val along = Offset(cos(armRad), sin(armRad))
+                    drawLine(color, center, center + along * (armLength * armGrown), width, StrokeCap.Round)
+                    SPLASH_TWIGS.forEach { (foot, reach) ->
+                        // A twig sprouts about when the arm reaches its foot.
+                        val sprouted = EaseOutBack.transform(grownFraction(progress, SPLASH_ARM_SPAN * foot, SPLASH_TWIG_SPAN))
+                        if (sprouted <= 0f) return@forEach
+                        val base = center + along * (armLength * foot)
+                        for (twigSide in -1..1 step 2) {
+                            val twigRad = armRad + twigSide * TWIG_ANGLE_RAD
+                            drawLine(color, base, base + Offset(cos(twigRad), sin(twigRad)) * (armLength * reach * sprouted), width * 0.8f, StrokeCap.Round)
+                        }
+                    }
+                }
+            }
+        }
+        drawCircle(Color(p.outerFastArgb), armWidth * 0.85f)
+        drawCircle(Color(p.colors.backgroundArgb), armWidth * 0.45f)
     }
 
     override fun DrawScope.drawLegendSample(

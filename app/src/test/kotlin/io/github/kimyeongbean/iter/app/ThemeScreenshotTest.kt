@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,8 +35,8 @@ private const val OUTPUT_DIR = "build/outputs/roborazzi"
 private val DRAW_IN_STEPS = listOf(0.5f, 1f)
 
 /**
- * Draws every theme's day art and map graph, light and dark, half drawn and finished, into picture
- * files. Nothing is compared: the test fails only when drawing throws. The pictures are for looking
+ * Draws every theme's day art, map graph and splash, light and dark, half drawn and finished, into
+ * picture files. Nothing is compared: the test fails only when drawing throws. The pictures are for looking
  * at what an emulator check would otherwise need (the dark schemes, a drawing half way).
  */
 @RunWith(RobolectricTestRunner::class)
@@ -52,6 +53,26 @@ class ThemeScreenshotTest {
                     val name = "${theme.name.lowercase()}_${if (dark) "dark" else "light"}_${(progress * 100).toInt()}"
                     val file = File(OUTPUT_DIR, "$name.png")
                     captureRoboImage(file.path) { ThemeSample(theme, dark, progress) }
+                    assertTrue("$name was not drawn", file.length() > 0)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `every theme draws its splash`() {
+        ArtTheme.entries.forEach { theme ->
+            listOf(false, true).forEach { dark ->
+                DRAW_IN_STEPS.forEach { progress ->
+                    val name = "splash_${theme.name.lowercase()}_${if (dark) "dark" else "light"}_${(progress * 100).toInt()}"
+                    val file = File(OUTPUT_DIR, "$name.png")
+                    captureRoboImage(file.path) {
+                        IterTheme(dark, theme.appColors(dark)) {
+                            Surface {
+                                Splash(theme, SpeedColorSettings(theme = theme).accentArgb(dark), dark, elapsedMs = { SPLASH_DRAW_MS * progress }, onSkip = {})
+                            }
+                        }
+                    }
                     assertTrue("$name was not drawn", file.length() > 0)
                 }
             }

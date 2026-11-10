@@ -195,4 +195,4 @@ internal fun IterApp(
 }
 
 /** System animator duration scale; 0 means the user turned animations off. */
-private fun animatorDurationScale(context: Context): Float = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+internal fun animatorDurationScale(context: Context): Float = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)

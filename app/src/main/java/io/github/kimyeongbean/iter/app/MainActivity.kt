@@ -12,6 +12,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,17 +58,21 @@ class MainActivity : ComponentActivity() {
                     Surface {
                         // Decoration only, and still: it reads no state that changes while a theme is on.
                         if (art != null) Canvas(Modifier.fillMaxSize()) { with(art) { drawBackdrop(dark) } }
-                        IterApp(
-                            recordStore = app.recordStore,
-                            recorder = app.driveSessionRecorder,
-                            settings = settings,
-                            onSettingsChange = {
-                                settings = it
-                                app.speedColorSettingsStore.save(it)
-                            },
-                            appScope = app.appScope,
-                            showDebugMenu = BuildConfig.DEBUG,
-                        )
+                        val driving by app.driveSessionRecorder.driving.collectAsState()
+                        val animationsOff = remember { animatorDurationScale(this) == 0f }
+                        SplashThenApp(settings.theme, settings.accentArgb(dark), dark, skip = driving || animationsOff) {
+                            IterApp(
+                                recordStore = app.recordStore,
+                                recorder = app.driveSessionRecorder,
+                                settings = settings,
+                                onSettingsChange = {
+                                    settings = it
+                                    app.speedColorSettingsStore.save(it)
+                                },
+                                appScope = app.appScope,
+                                showDebugMenu = BuildConfig.DEBUG,
+                            )
+                        }
                     }
                 }
             }

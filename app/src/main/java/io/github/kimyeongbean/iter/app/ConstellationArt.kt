@@ -1,5 +1,7 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -35,6 +37,19 @@ private const val PANEL_STARS = 90
 
 /** One backdrop star per square of this side, in dp. */
 private const val BACKDROP_CELL_DP = 90f
+
+/** Splash: the constellation's stars in a unit square, in the order they light up. */
+private val SPLASH_STARS =
+    listOf(
+        Offset(0.10f, 0.36f),
+        Offset(0.30f, 0.68f),
+        Offset(0.50f, 0.44f),
+        Offset(0.70f, 0.70f),
+        Offset(0.88f, 0.30f),
+    )
+
+/** Splash: a star lights up over this share of the draw-in. */
+private const val SPLASH_LIGHT_UP_SPAN = 0.2f
 
 /**
  * Constellation (별자리): the day is a star with thin rays, the route a constellation, on a night
@@ -269,6 +284,29 @@ internal object ConstellationArt : ThemeArt {
         drawCircle(Color(p.starFastArgb), side * 0.014f, frame.at(first), style = Stroke(side * 0.003f))
         if (progress >= 1f) {
             drawSparkle(frame.at(last), side * (0.028f + 0.004f * sin(loopSeconds * 2f)), Color(p.starFastArgb))
+        }
+    }
+
+    /** Stars light up one after another, each joined to the next by a line; the last is a gold sparkle. */
+    override fun DrawScope.drawSplash(
+        dark: Boolean,
+        progress: Float,
+    ) {
+        val p = palette(dark)
+        val side = size.minDimension
+        val corner = center - Offset(side / 2, side / 2)
+        val stars = SPLASH_STARS.map { corner + it * side }
+        // Each star starts this long after the one before; the last finishes with the draw-in.
+        val every = (1f - SPLASH_LIGHT_UP_SPAN) / stars.lastIndex
+        for (i in 0 until stars.lastIndex) {
+            val joined = FastOutSlowInEasing.transform(grownFraction(progress, every * i + SPLASH_LIGHT_UP_SPAN / 2, every))
+            if (joined > 0f) drawLine(Color(p.lineArgb), stars[i], stars[i] + (stars[i + 1] - stars[i]) * joined, side * 0.011f, StrokeCap.Round)
+        }
+        stars.forEachIndexed { i, at ->
+            val lit = EaseOutBack.transform(grownFraction(progress, every * i, SPLASH_LIGHT_UP_SPAN))
+            if (lit <= 0f) return@forEachIndexed
+            val last = i == stars.lastIndex
+            drawSparkle(at, side * (if (last) 0.095f else 0.055f) * lit, Color(if (last) p.sparkleArgb else p.starFastArgb))
         }
     }
 
