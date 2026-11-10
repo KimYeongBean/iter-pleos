@@ -16,6 +16,7 @@
 | 주행 세션 기록기 | 차량 신호 흐름으로 주행 세션의 시작·끝을 감지해 기록 저장소에 저장하는 곳. 진행 중 여부와 수동 시작·끝 입구를 가짐 | `DriveSessionRecorder` (진행 중 `inProgress`, 수동 시작·끝 `requestStart()`·`requestEnd()`) | `:vehicle` 출력. [docs/interfaces.md](docs/interfaces.md) 1번 |
 | 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 세 종류: 정상 `normal` / 급가속·급제동 `harsh` / 신호 일부 누락 `missingSignals`, 날짜마다 한 종류씩 섞은 묶음 `allKinds`. 피할 말: 더미, 목업 데이터 |
 | 맵 그래프 | 주행 경로를 지도 배경 없이 레이싱 트랙처럼 선으로 그린 화면 요소 | `MapGraph` (경로 `MapRoute`) | 바탕은 어두운/밝은 중 사용자가 고름 (바탕: `MapBackground`). 상세 그래프는 별개 화면 |
+| 비 효과 | 맵 그래프에서 와이퍼를 켠 구간에 빗줄이 천천히 반복해 떨어지는 표시. 신호가 없으면(null) 없음 | `RainDrop` (`MapRoute.rainDrops`) | 출처: #14. 정차 화면에서만 반복, 화면을 벗어나면 멈춤. 유일한 반복 연출 |
 | 추정 경로 | 위치 없이 속도와 조향각으로 계산한 주행 경로 | TBD | 최종 기획의 맵 그래프 경로. 첫 제출은 위치가 있을 때만 그림 ([ADR 0002](docs/adr/0002-map-graph-estimated-route.md)) |
 | 속도색 | 속도에 비례해 연속으로 진해지는 한 가지 색. 경로·그래프에 입힘 | `SpeedColor` (최대 속도 `SPEED_COLOR_MAX_KMH`) | 구간으로 나누지 않음. 기본 색은 사용자가 고정 팔레트 5색에서 고름 (`SpeedColorBase`). 가장 진한 색이 되는 속도는 날짜와 상관없이 고정 |
 | 깜빡이 | 방향지시등. 주행 데이터 항목 중 하나 | `TurnSignal` (켜짐 판정 `isOn`) | 꺼짐 / 좌 / 우 / 비상 네 가지 상태. 좌·우·비상이 켜짐, 신호 없음(null)은 꺼짐 |
