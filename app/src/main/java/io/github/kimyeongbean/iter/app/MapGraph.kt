@@ -22,9 +22,8 @@ private const val LINE_WIDTH = 0.012f
 private const val TURN_SIGNAL_BAND_WIDTH = 0.05f
 private const val TURN_SIGNAL_BAND_ALPHA = 0.25f
 
-/** Low beam shade: a wide dark band, as a share of the box side, behind the other bands. */
+/** Low beam shade: a wide night band, as a share of the box side, behind the other bands. */
 private const val LOW_BEAM_SHADE_WIDTH = 0.09f
-private const val LOW_BEAM_SHADE_ALPHA = 0.45f
 
 /** Rain effect: one slow fall per cycle (Notion 디자인 '애니메이션·전환 기준': 천천히 반복). */
 private const val RAIN_FALL_MS = 1_600L
@@ -71,7 +70,7 @@ internal fun MapGraph(
     val backgroundColor = Color(background.argb)
     // Opaque colours: round caps of see-through segments would otherwise overlap into beads.
     val bandColor = Color(background.textArgb).copy(alpha = TURN_SIGNAL_BAND_ALPHA).compositeOver(backgroundColor)
-    val shadeColor = Color.Black.copy(alpha = LOW_BEAM_SHADE_ALPHA).compositeOver(backgroundColor)
+    val shadeColor = Color(background.lowBeamShadeArgb)
     val rainColor = Color(background.textArgb)
     Canvas(modifier) {
         val progress = drawInProgress()
@@ -85,16 +84,8 @@ internal fun MapGraph(
 
         // Bands first, so the line stays on top. A segment touching a signal sample gets one, so
         // a single-sample signal still shows. The wide low beam shade goes under the turn band.
-        route.strokes.forEach { stroke ->
-            stroke.zipWithNext().forEach { (a, b) ->
-                if (a.lowBeamOn || b.lowBeamOn) drawSegment(a, b, progress, toCanvas, shadeColor, shade)
-            }
-        }
-        route.strokes.forEach { stroke ->
-            stroke.zipWithNext().forEach { (a, b) ->
-                if (a.turnSignalOn || b.turnSignalOn) drawSegment(a, b, progress, toCanvas, bandColor, band)
-            }
-        }
+        route.forEachSegmentTouching({ it.lowBeamOn }) { a, b -> drawSegment(a, b, progress, toCanvas, shadeColor, shade) }
+        route.forEachSegmentTouching({ it.turnSignalOn }) { a, b -> drawSegment(a, b, progress, toCanvas, bandColor, band) }
         // Rain under the line, so the line stays readable; drops show once the draw-in passed them.
         val phase = rainPhase.floatValue
         val fallHeight = size.minDimension * RAIN_FALL_HEIGHT
@@ -115,6 +106,27 @@ internal fun MapGraph(
                 drawSegment(a, b, progress, toCanvas, Color(b.colorArgb).compositeOver(backgroundColor), line)
             }
         }
+    }
+}
+
+/**
+ * Low beam shade colour per background: darker than the background and night blue, so it still
+ * shows on the dark background, where black would barely differ.
+ */
+private val MapBackground.lowBeamShadeArgb: Int
+    get() =
+        when (this) {
+            MapBackground.DARK -> 0xFF0C1322.toInt()
+            MapBackground.LIGHT -> 0xFFB8BECB.toInt()
+        }
+
+/** Calls [action] for each segment with at least one end where [signalOn]. */
+private inline fun MapRoute.forEachSegmentTouching(
+    signalOn: (RoutePoint) -> Boolean,
+    action: (RoutePoint, RoutePoint) -> Unit,
+) {
+    strokes.forEach { stroke ->
+        stroke.zipWithNext().forEach { (a, b) -> if (signalOn(a) || signalOn(b)) action(a, b) }
     }
 }
 
