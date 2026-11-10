@@ -49,4 +49,21 @@ class SpeedColorSettingsStoreTest {
 
         assertEquals(chosen, SpeedColorSettingsStore(context).load())
     }
+
+    @Test
+    fun `chosen screen mode survives a new store instance`() {
+        val chosen = SpeedColorSettings(screenMode = ScreenMode.DARK)
+
+        SpeedColorSettingsStore(context).save(chosen)
+
+        assertEquals(chosen, SpeedColorSettingsStore(context).load())
+    }
+
+    @Test
+    fun `screen mode follows the system unless light or dark is chosen`() {
+        assertEquals(true, ScreenMode.SYSTEM.isDark(systemDark = true))
+        assertEquals(false, ScreenMode.SYSTEM.isDark(systemDark = false))
+        assertEquals(false, ScreenMode.LIGHT.isDark(systemDark = true))
+        assertEquals(true, ScreenMode.DARK.isDark(systemDark = false))
+    }
 }
