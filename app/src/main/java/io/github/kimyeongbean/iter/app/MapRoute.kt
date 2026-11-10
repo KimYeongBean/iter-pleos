@@ -6,6 +6,7 @@ import io.github.kimyeongbean.iter.model.Sample
 import io.github.kimyeongbean.iter.model.inDriveOrder
 import io.github.kimyeongbean.iter.model.isOn
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -15,6 +16,13 @@ private const val RAIN_DROP_SPACING = 0.04f
 
 /** Golden ratio fraction: spreads drop fall offsets evenly without a visible pattern. */
 private const val FALL_OFFSET_STEP = 0.618034f
+
+/** Faster than this between two locations means one of them is wrong (#64, proposed value). */
+private const val MAX_PLAUSIBLE_SPEED_KMH = 300.0
+
+private const val EARTH_RADIUS_KM = 6371.0
+
+private const val MS_PER_HOUR = 3_600_000.0
 
 /**
  * Map graph route (GLOSSARY: 맵 그래프) of a day record, ready to draw: no map, only the line.
@@ -67,6 +75,7 @@ internal fun mapRoute(
             .inDriveOrder()
             .flatMap { session ->
                 session.samples
+                    .withoutLocationJumps()
                     .fold(mutableListOf(mutableListOf<Sample>())) { strokes, sample ->
                         if (sample.location != null) {
                             strokes.last().add(sample)
@@ -112,6 +121,37 @@ internal fun mapRoute(
             }
         }
     return MapRoute(strokes, rainDrops(strokes))
+}
+
+/**
+ * Leaves out located samples too far from every located neighbour to have been driven to in time
+ * (an old fix when GPS starts, a single wrong fix). With fewer than three locations nothing is left
+ * out: there is no telling which one is wrong. Only for drawing; saved samples stay as they are.
+ * Two or more wrong fixes in a row are close to each other, so they stay.
+ */
+private fun List<Sample>.withoutLocationJumps(): List<Sample> {
+    val located = filter { it.location != null }
+    if (located.size < 3) return this
+    val jumps =
+        located.filterIndexed { i, sample ->
+            listOfNotNull(located.getOrNull(i - 1), located.getOrNull(i + 1)).all { tooFastBetween(it, sample) }
+        }
+    return filterNot { sample -> jumps.any { it === sample } }
+}
+
+private fun tooFastBetween(
+    a: Sample,
+    b: Sample,
+): Boolean {
+    val from = a.location!!
+    val to = b.location!!
+    val lat = Math.toRadians((from.latitudeDeg + to.latitudeDeg) / 2)
+    val northKm = Math.toRadians(to.latitudeDeg - from.latitudeDeg) * EARTH_RADIUS_KM
+    val eastKm = Math.toRadians(to.longitudeDeg - from.longitudeDeg) * EARTH_RADIUS_KM * cos(lat)
+    val hours = abs(b.timeEpochMs - a.timeEpochMs) / MS_PER_HOUR
+    // Two fixes at the same time give no speed to judge by.
+    if (hours == 0.0) return false
+    return hypot(northKm, eastKm) > MAX_PLAUSIBLE_SPEED_KMH * hours
 }
 
 /**

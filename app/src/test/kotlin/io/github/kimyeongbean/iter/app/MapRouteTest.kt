@@ -14,12 +14,13 @@ class MapRouteTest {
     private val base = 0xFF336699.toInt()
 
     private fun sample(
-        second: Int,
+        minute: Int,
         location: GeoPoint?,
         speedKmh: Double = 50.0,
         startEpochMs: Long = 0L,
     ) = Sample(
-        timeEpochMs = startEpochMs + second * SAMPLE_INTERVAL_MS,
+        // A minute apart, so the small test steps (about 100 m) stay at a drivable speed (#64).
+        timeEpochMs = startEpochMs + minute * 60 * SAMPLE_INTERVAL_MS,
         speedKmh = speedKmh,
         turnSignal = null,
         wiperOn = null,
@@ -39,6 +40,36 @@ class MapRouteTest {
         startEpochMs: Long,
         samples: List<Sample>,
     ) = DriveSession(startEpochMs, samples.lastOrNull()?.timeEpochMs, DriveSessionSource.VEHICLE, samples)
+
+    /** A short drive north-east in Seoul, one sample per minute. */
+    private fun seoulDrive(firstMinute: Int) = List(5) { i -> sample(firstMinute + i, GeoPoint(37.5 + i * 0.0001, 127.0 + i * 0.0001)) }
+
+    @Test
+    fun `a first location far from the rest, too far to drive in time, is left out (#64)`() {
+        val stale = sample(0, GeoPoint(37.422, -122.084))
+        val withStale = mapRoute(listOf(session(0L, listOf(stale) + seoulDrive(1))), base)
+        val without = mapRoute(listOf(session(0L, seoulDrive(1))), base)
+
+        assertEquals(without.strokes.map { s -> s.map { it.x to it.y } }, withStale.strokes.map { s -> s.map { it.x to it.y } })
+    }
+
+    @Test
+    fun `a single location jump in the middle of a drive is left out (#64)`() {
+        val drive = seoulDrive(0)
+        val jump = sample(5, GeoPoint(35.1, 129.0))
+        val after = List(5) { i -> sample(6 + i, GeoPoint(37.5005 + i * 0.0001, 127.0005 + i * 0.0001)) }
+        val route = mapRoute(listOf(session(0L, drive + jump + after)), base)
+
+        assertEquals(1, route.strokes.size)
+        assertEquals(10, route.strokes.single().size)
+    }
+
+    @Test
+    fun `two far apart locations alone are both kept, there is no telling which is wrong (#64)`() {
+        val route = mapRoute(listOf(session(0L, listOf(sample(0, GeoPoint(37.5, 127.0)), sample(1, GeoPoint(35.1, 129.0))))), base)
+
+        assertEquals(2, route.strokes.single().size)
+    }
 
     @Test
     fun `a day record without location has no route`() {
