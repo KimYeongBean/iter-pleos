@@ -31,4 +31,13 @@ internal fun grassCells(
     }
 }
 
+/**
+ * The date text in a cell's corner: the day of month, with the month in front on the first of a
+ * month and on the grid's first cell ([firstCell]), so every month on the grid is named once.
+ */
+internal fun grassCellLabel(
+    date: LocalDate,
+    firstCell: Boolean,
+): String = if (firstCell || date.dayOfMonth == 1) "${date.monthValue}/${date.dayOfMonth}" else "${date.dayOfMonth}"
+
 private fun LocalDate.weekStart() = with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

@@ -30,6 +30,13 @@ class GrassCellTest {
     }
 
     @Test
+    fun `a cell is labelled with its day of month, and with the month too where a month starts to show`() {
+        assertEquals("11", grassCellLabel(today, firstCell = false))
+        assertEquals("11/1", grassCellLabel(LocalDate.of(2026, 11, 1), firstCell = false))
+        assertEquals("10/12", grassCellLabel(LocalDate.of(2026, 10, 12), firstCell = true))
+    }
+
+    @Test
     fun `grid reaches back to the oldest recorded week`() {
         val cells = grassCells(today, listOf(LocalDate.of(2026, 10, 1)), minWeeks = 2)
 
