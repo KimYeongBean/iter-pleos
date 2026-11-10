@@ -9,7 +9,7 @@ Addy Osmani agent-skills 흐름을 따릅니다.
 2. **plan** — 작은 단계로 나눕니다.
 3. **build** — 자기 모듈 안에서 조금씩 구현합니다.
 4. **test** — 테스트 또는 재현 방법을 남깁니다.
-   - 그림(테마, 하루 그림, 맵 그래프)을 바꿨으면 `./gradlew build` 뒤 `app/build/outputs/roborazzi/`의 그림을 봅니다. 테마 8종 × 라이트/다크 × 그려지기 50%/100%가 있고, CI 실행의 `theme-pictures`에서도 받을 수 있습니다. 새 테마는 목록에 넣으면 자동으로 포함됩니다.
+   - 그림(테마, 하루 그림, 맵 그래프)을 바꿨으면 `./gradlew build` 뒤 `app/build/outputs/roborazzi/`의 그림을 봅니다. 모든 테마 × 라이트/다크 × 그려지기 50%/100%가 있고, CI 실행의 `theme-pictures`에서도 받을 수 있습니다. 새 테마는 목록에 넣으면 자동으로 포함됩니다.
 5. **review** — 다른 사람(또는 다른 에이전트 + 사람)이 리뷰합니다.
 6. **ship** — 사람이 승인한 PR로만 merge합니다. 에이전트는 merge하지 않습니다. 예외: 전역관리자 세션의 에이전트([AGENTS.md](../AGENTS.md) 7번).
 
