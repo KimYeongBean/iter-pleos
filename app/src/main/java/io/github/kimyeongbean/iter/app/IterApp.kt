@@ -93,7 +93,7 @@ internal fun IterApp(
     val inProgress by recorder.inProgress.collectAsState()
     if (driving) {
         // Swapped in without a transition: leaving the record screens stops their animations at once.
-        RecordingScreen(onEnd = if (inProgress) recorder::requestEnd else null)
+        RecordingScreen(speedColorSettings.base, onEnd = if (inProgress) recorder::requestEnd else null)
         return
     }
 
