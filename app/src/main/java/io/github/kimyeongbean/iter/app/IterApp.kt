@@ -138,7 +138,6 @@ internal fun IterApp(
                             openDate = it
                             screen = Screen.DAY
                         },
-                        onStartRecording = recorder::requestStart,
                         onOpenSettings = { screen = Screen.SETTINGS },
                         onOpenDebugMenu = if (showDebugMenu) ({ screen = Screen.DEBUG_MENU }) else null,
                         sharedTransitionScope = this@SharedTransitionLayout,
@@ -187,6 +186,7 @@ internal fun IterApp(
                 Screen.DEBUG_MENU ->
                     DebugMenuScreen(
                         recordStore = recordStore,
+                        onStartRecording = recorder::requestStart,
                         scope = appScope,
                         onBack = { screen = Screen.GRASS },
                     )

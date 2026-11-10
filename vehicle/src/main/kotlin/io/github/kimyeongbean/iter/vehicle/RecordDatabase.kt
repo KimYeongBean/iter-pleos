@@ -117,6 +117,10 @@ internal abstract class RecordDao {
     )
     abstract suspend fun closeUnfinishedSessions()
 
+    /** Deletes every session; their samples go with them (cascade). */
+    @Query("DELETE FROM drive_session")
+    abstract suspend fun deleteAllSessions()
+
     @Query("SELECT DISTINCT dayEpochDay FROM drive_session ORDER BY dayEpochDay")
     abstract fun recordedDays(): Flow<List<Long>>
 
