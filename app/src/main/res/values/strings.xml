@@ -38,6 +38,7 @@
     <string name="legend_low_beam_section">전조등 켠 구간</string>
     <string name="legend_wiper_section">와이퍼 켠 구간</string>
     <string name="recording">기록 중</string>
+    <string name="recording_hint">주행이 끝나면 오늘 기록을 볼 수 있어요</string>
     <string name="start_recording">기록 시작</string>
     <string name="end_recording">기록 끝</string>
 </resources>
