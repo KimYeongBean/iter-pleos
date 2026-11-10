@@ -155,11 +155,16 @@ internal fun IterApp(
                         val dayRecord = recordStore.dayRecord(date)
                         value = withContext(Dispatchers.Default) { mapRoute(dayRecord, speedColorBaseArgb) }
                     }
+                    val summary by produceState<DriveSummary?>(null, date, recordsVersion) {
+                        value = driveSummary(recordStore.dayRecord(date), ZoneId.systemDefault())
+                    }
                     DayScreen(
                         date = date,
                         dayArt = dayArts[date],
                         route = route,
+                        summary = summary,
                         background = background,
+                        speedColorBaseArgb = speedColorBaseArgb,
                         playDrawIn = date !in drawnInDates && !animationsOff,
                         animateRain = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
