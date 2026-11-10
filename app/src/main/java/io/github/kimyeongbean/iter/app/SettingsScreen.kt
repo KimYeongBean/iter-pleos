@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.kimyeongbean.iter.art.SPEED_COLOR_MAX_KMH
@@ -90,7 +91,8 @@ internal fun SettingsScreen(
             }
             if (wide) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    choices(Modifier.weight(CHOICES_WEIGHT))
+                    // Scrolls when the window is too short for both cards.
+                    choices(Modifier.weight(CHOICES_WEIGHT).verticalScroll(rememberScrollState()))
                     SpeedColorPreview(settings, Modifier.weight(1f - CHOICES_WEIGHT).fillMaxHeight())
                 }
             } else {
@@ -153,7 +155,13 @@ private fun SpeedColorChoice(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(Modifier.size(64.dp).background(swatch, CircleShape))
-                Text(stringResource(base.label), style = MaterialTheme.typography.labelMedium, color = textColor, maxLines = 1)
+                Text(
+                    stringResource(base.label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -177,10 +185,16 @@ private fun MapBackgroundChoice(
     ) {
         MapBackground.entries.forEach { background ->
             val selected = background == settings.background
+            // The chosen cell is the strong one: filled in the primary colour, not just a shade lighter.
             val cellColor by animateColorAsState(
-                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 tween(COLOR_CHANGE_MS),
                 label = "cell",
+            )
+            val cellTextColor by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground,
+                tween(COLOR_CHANGE_MS),
+                label = "cellText",
             )
             Box(
                 Modifier
@@ -191,7 +205,7 @@ private fun MapBackgroundChoice(
                     .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(background = background)) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(background.label), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(background.label), style = MaterialTheme.typography.bodyMedium, color = cellTextColor)
             }
         }
     }
