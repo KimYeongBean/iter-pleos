@@ -107,9 +107,9 @@ internal class FixedThemeColors(
 /**
  * What a map graph panel, a day art panel or a grass cell is drawn with: the ground, text on it,
  * the speed colour base and the map graph effect colours. ARGB with no Compose types, so tests can
- * check the contrast.
+ * check the contrast. A data class, so screens taking an equal one are not drawn again.
  */
-internal class ThemePanel(
+internal data class ThemePanel(
     val argb: Int,
     val textArgb: Int,
     val speedColorBaseArgb: Int,
