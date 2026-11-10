@@ -3,7 +3,8 @@ package io.github.kimyeongbean.iter.app
 import io.github.kimyeongbean.iter.art.SpeedColor
 import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.Sample
-import io.github.kimyeongbean.iter.model.TurnSignal
+import io.github.kimyeongbean.iter.model.inDriveOrder
+import io.github.kimyeongbean.iter.model.isOn
 import kotlin.math.cos
 
 /**
@@ -37,10 +38,9 @@ internal fun mapRoute(
     // Each session, and each gap in location, starts a new stroke.
     val located: List<List<Sample>> =
         dayRecord
-            .sortedWith(compareBy({ it.startEpochMs }, { it.source }))
+            .inDriveOrder()
             .flatMap { session ->
                 session.samples
-                    .sortedBy { it.timeEpochMs }
                     .fold(mutableListOf(mutableListOf<Sample>())) { strokes, sample ->
                         if (sample.location != null) {
                             strokes.last().add(sample)
@@ -79,7 +79,7 @@ internal fun mapRoute(
                     y = (top + (north - location.latitudeDeg) * scale).toFloat(),
                     colorArgb = SpeedColor.argb(speedColorBaseArgb, sample.speedKmh),
                     timePosition = index++ / lastIndex,
-                    turnSignalOn = sample.turnSignal != null && sample.turnSignal != TurnSignal.OFF,
+                    turnSignalOn = sample.turnSignal.isOn,
                 )
             }
         }
