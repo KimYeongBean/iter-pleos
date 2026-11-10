@@ -299,23 +299,26 @@ class DriveSessionRecorderTest {
     }
 
     @Test
-    fun `manual end while the gear is D is dropped and the drive session goes on`() = runBlocking {
+    fun `manual end in gear D ends the drive session at once and blocks auto start until the gear leaves D`() = runBlocking {
         val store = openStore()
         val recorder = DriveSessionRecorder(store)
         val start = at(nov9, 8)
         val beforeEnd = signals(start, drive(20))
-        val afterEnd = signals(start + 20 * SAMPLE_INTERVAL_MS, drive(30), parked(endWaitS + 1))
+        val stillInD = signals(start + 20 * SAMPLE_INTERVAL_MS, drive(30))
+        val nextDrive = signals(start + 50 * SAMPLE_INTERVAL_MS, parked(3), drive(10), parked(endWaitS + 1))
 
         recorder.record(
             flow {
                 emitAll(beforeEnd.asFlow())
                 recorder.requestEnd()
-                emitAll(afterEnd.asFlow())
+                emitAll((stillInD + nextDrive).asFlow())
             },
         )
 
-        val played = beforeEnd + afterEnd
-        assertEquals(listOf(expectedSession(played, start + 50 * SAMPLE_INTERVAL_MS)), store.dayRecord(nov9))
+        assertEquals(
+            listOf(manualSession(beforeEnd), expectedSession(nextDrive, start + 63 * SAMPLE_INTERVAL_MS)),
+            store.dayRecord(nov9),
+        )
     }
 
     @Test
@@ -367,5 +370,78 @@ class DriveSessionRecorderTest {
             recording.cancelAndJoin()
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `driving is true while a drive session is in progress or the gear is not P, and no gear signal is not driving`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val feed = Channel<VehicleSignals>()
+
+        recorder.driving.test {
+            assertFalse(awaitItem())
+            val recording = launch { recorder.record(feed.consumeAsFlow()) }
+
+            signals(start, Stretch(Gear.REVERSE, 5.0, 3)).forEach { feed.send(it) }
+            assertTrue(awaitItem())
+
+            signals(start + 3 * SAMPLE_INTERVAL_MS, parked(3), Stretch(null, 0.0, 3)).forEach { feed.send(it) }
+            assertFalse(awaitItem())
+
+            signals(start + 9 * SAMPLE_INTERVAL_MS, drive(5)).forEach { feed.send(it) }
+            assertTrue(awaitItem())
+
+            // Parked but still recording until the end wait passes.
+            signals(start + 14 * SAMPLE_INTERVAL_MS, parked(endWaitS + 1)).forEach { feed.send(it) }
+            assertFalse(awaitItem())
+
+            recording.cancelAndJoin()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `with no gear signal, driving follows the drive session in progress`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val feed = Channel<VehicleSignals>()
+
+        recorder.driving.test {
+            assertFalse(awaitItem())
+            val recording = launch { recorder.record(feed.consumeAsFlow()) }
+
+            // One signal first, so the recorder is running when the start request comes.
+            feed.send(signals(start, Stretch(null, 0.0, 1)).single())
+            recorder.requestStart()
+            signals(start + SAMPLE_INTERVAL_MS, Stretch(null, 30.0, 3)).forEach { feed.send(it) }
+            assertTrue(awaitItem())
+
+            recorder.requestEnd()
+            signals(start + 4 * SAMPLE_INTERVAL_MS, Stretch(null, 0.0, 3)).forEach { feed.send(it) }
+            assertFalse(awaitItem())
+
+            recording.cancelAndJoin()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a lost gear signal after a manual end in gear D keeps blocking the automatic start`() = runBlocking {
+        val store = openStore()
+        val recorder = DriveSessionRecorder(store)
+        val start = at(nov9, 8)
+        val beforeEnd = signals(start, drive(20))
+
+        recorder.record(
+            flow {
+                emitAll(beforeEnd.asFlow())
+                recorder.requestEnd()
+                emitAll(signals(start + 20 * SAMPLE_INTERVAL_MS, drive(3), Stretch(null, 30.0, 3), drive(10)).asFlow())
+            },
+        )
+
+        assertEquals(listOf(manualSession(beforeEnd)), store.dayRecord(nov9))
     }
 }
