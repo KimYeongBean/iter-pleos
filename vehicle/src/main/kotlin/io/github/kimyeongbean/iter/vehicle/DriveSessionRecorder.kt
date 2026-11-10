@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.vehicle
 
+import android.content.Context
 import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.DriveSessionSource
 import io.github.kimyeongbean.iter.model.Sample
@@ -56,6 +57,15 @@ public class DriveSessionRecorder(
      */
     public fun requestEnd() {
         manualRequest.set(ManualRequest.END)
+    }
+
+    /**
+     * Records from the real vehicle signals (Pleos Vehicle SDK, vehicle speed, location) until the
+     * caller is cancelled; see [record]. Signals without a granted permission are recorded as missing,
+     * so ask for [CAR_SPEED_PERMISSION] and fine location before calling.
+     */
+    public suspend fun recordFromVehicle(context: Context) {
+        record(pleosVehicleSignals(context.applicationContext))
     }
 
     /**

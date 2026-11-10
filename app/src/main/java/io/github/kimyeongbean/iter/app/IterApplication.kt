@@ -5,7 +5,9 @@ import io.github.kimyeongbean.iter.vehicle.DriveSessionRecorder
 import io.github.kimyeongbean.iter.vehicle.RecordStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class IterApplication : Application() {
     /** One record store per process, so every screen reads the same database. */
@@ -19,4 +21,16 @@ class IterApplication : Application() {
 
     /** Work that must finish even if the activity is recreated (e.g. inserting fake drive data). */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private var recording: Job? = null
+
+    /**
+     * Starts recording drive sessions from the vehicle for the rest of the process (#18). Call after
+     * the runtime permissions were asked: signals without permission are recorded as missing.
+     * Later calls do nothing.
+     */
+    fun startRecording() {
+        if (recording != null) return
+        recording = appScope.launch { driveSessionRecorder.recordFromVehicle(this@IterApplication) }
+    }
 }
