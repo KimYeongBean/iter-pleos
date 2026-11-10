@@ -151,6 +151,7 @@ internal fun IterApp(
                         route = route,
                         background = background,
                         playDrawIn = date !in drawnInDates && !animationsOff,
+                        animateRain = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
                         onBack = { screen = Screen.GRASS },
                         sharedTransitionScope = this@SharedTransitionLayout,

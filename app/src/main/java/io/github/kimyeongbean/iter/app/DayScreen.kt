@@ -78,6 +78,7 @@ internal fun Modifier.dayArtSharedElement(
  * When [playDrawIn], the full day art first grows out of the grass cell, then both draw in drive
  * time order once their data is ready. A tap anywhere skips both to the end. [onDrawInStarted] is
  * called on open, so the draw-in counts as played even when skipped or left early.
+ * When [animateRain], the map graph's rain effect falls over and over; a tap does not stop it.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -87,6 +88,7 @@ internal fun DayScreen(
     route: MapRoute?,
     background: MapBackground,
     playDrawIn: Boolean,
+    animateRain: Boolean,
     onDrawInStarted: () -> Unit,
     onBack: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -147,7 +149,7 @@ internal fun DayScreen(
                 when {
                     route == null -> Unit
                     route.strokes.isEmpty() -> Text(stringResource(R.string.map_graph_no_route), color = messageColor)
-                    else -> MapGraph(route, background, Modifier.fillMaxSize()) { routeDrawIn.progress.value }
+                    else -> MapGraph(route, background, Modifier.fillMaxSize(), animateRain) { routeDrawIn.progress.value }
                 }
             }
         }

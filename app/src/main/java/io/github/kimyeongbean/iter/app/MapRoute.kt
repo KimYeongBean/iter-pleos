@@ -5,7 +5,16 @@ import io.github.kimyeongbean.iter.model.DriveSession
 import io.github.kimyeongbean.iter.model.Sample
 import io.github.kimyeongbean.iter.model.inDriveOrder
 import io.github.kimyeongbean.iter.model.isOn
+import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.sin
+
+/** Distance between rain drops along a wiper stretch, in unit square lengths. */
+private const val RAIN_DROP_SPACING = 0.04f
+
+/** Golden ratio fraction: spreads drop fall offsets evenly without a visible pattern. */
+private const val FALL_OFFSET_STEP = 0.618034f
 
 /**
  * Map graph route (GLOSSARY: 맵 그래프) of a day record, ready to draw: no map, only the line.
@@ -15,6 +24,8 @@ import kotlin.math.cos
 internal data class MapRoute(
     /** Continuous stretches of located samples, in drive time order. */
     val strokes: List<List<RoutePoint>>,
+    /** Rain effect drops along stretches with the wiper on, computed once so drawing only draws. */
+    val rainDrops: List<RainDrop>,
 )
 
 internal data class RoutePoint(
@@ -28,6 +39,21 @@ internal data class RoutePoint(
     val timePosition: Float,
     /** Turn signal left, right or hazard at this sample; false when off or missing. */
     val turnSignalOn: Boolean,
+    /** Wiper on at this sample; false when off or missing. */
+    val wiperOn: Boolean,
+    /** Low beam on at this sample; false when off or missing. */
+    val lowBeamOn: Boolean,
+)
+
+/** One drop of the rain effect, anchored on the route. */
+internal data class RainDrop(
+    /** Anchor on the route, in the same unit square as [RoutePoint]. */
+    val x: Float,
+    val y: Float,
+    /** Drive time position of the anchor, 0 to 1: the drop shows once the draw-in passes it. */
+    val timePosition: Float,
+    /** Where in its fall the drop is at phase 0, 0 to 1, so drops fall out of step. */
+    val fallOffset: Float,
 )
 
 /** The [dayRecord]'s route from sample locations, coloured with [speedColorBaseArgb]. */
@@ -51,7 +77,7 @@ internal fun mapRoute(
                     }.filter { it.isNotEmpty() }
             }
     val all = located.flatten()
-    if (all.isEmpty()) return MapRoute(emptyList())
+    if (all.isEmpty()) return MapRoute(emptyList(), emptyList())
 
     val lats = all.map { it.location!!.latitudeDeg }
     val lons = all.map { it.location!!.longitudeDeg }
@@ -80,11 +106,55 @@ internal fun mapRoute(
                     colorArgb = SpeedColor.argb(speedColorBaseArgb, sample.speedKmh),
                     timePosition = index++ / lastIndex,
                     turnSignalOn = sample.turnSignal.isOn,
+                    wiperOn = sample.wiperOn == true,
+                    lowBeamOn = sample.lowBeamOn == true,
                 )
             }
         }
-    return MapRoute(strokes)
+    return MapRoute(strokes, rainDrops(strokes))
 }
+
+/**
+ * Drops every [RAIN_DROP_SPACING] along segments touching a wiper sample (the same rule as the
+ * turn signal band), each stretch of such segments starting with a drop.
+ */
+private fun rainDrops(strokes: List<List<RoutePoint>>): List<RainDrop> {
+    val drops = mutableListOf<RainDrop>()
+    strokes.forEach { stroke ->
+        // Distance from the segment start to the next drop; null outside a wiper stretch.
+        var next: Float? = null
+        stroke.zipWithNext().forEach { (a, b) ->
+            if (!a.wiperOn && !b.wiperOn) {
+                next = null
+                return@forEach
+            }
+            val length = hypot(b.x - a.x, b.y - a.y)
+            var at = next ?: 0f
+            while (at <= length) {
+                val f = if (length > 0f) at / length else 0f
+                drops +=
+                    RainDrop(
+                        x = a.x + (b.x - a.x) * f,
+                        y = a.y + (b.y - a.y) * f,
+                        timePosition = a.timePosition + (b.timePosition - a.timePosition) * f,
+                        fallOffset = (drops.size * FALL_OFFSET_STEP) % 1f,
+                    )
+                at += RAIN_DROP_SPACING
+            }
+            next = at - length
+        }
+    }
+    return drops
+}
+
+/** How far through its fall window [drop] is at [phase] (0 to 1, one fall cycle): 0 top, 1 bottom. */
+internal fun rainFall(
+    drop: RainDrop,
+    phase: Float,
+): Float = (phase + drop.fallOffset) % 1f
+
+/** Drop opacity at [fall] (see [rainFall]): fades in at the top and out at the bottom. */
+internal fun rainAlpha(fall: Float): Float = sin(PI * fall).toFloat().coerceAtLeast(0f)
 
 /** How much of the segment [from] → [to] the draw-in at [progress] (0 to 1, drive time) has drawn, 0 to 1. */
 internal fun segmentDrawnFraction(
