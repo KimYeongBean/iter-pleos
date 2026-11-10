@@ -24,6 +24,10 @@
     <string name="drive_summary">주행 %1$d회 · %2$s</string>
     <string name="settings_open">설정</string>
     <string name="settings_title">설정</string>
+    <string name="screen_mode_title">화면 모드</string>
+    <string name="screen_mode_system">시스템</string>
+    <string name="screen_mode_light">라이트</string>
+    <string name="screen_mode_dark">다크</string>
     <string name="theme_default_title">기본 테마</string>
     <string name="theme_plain_title">일반 테마</string>
     <string name="theme_advanced_title">고급 테마</string>
