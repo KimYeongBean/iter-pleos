@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +13,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,20 +59,30 @@ class MainActivity : ComponentActivity() {
                     Surface {
                         // Decoration only, and still: it reads no state that changes while a theme is on.
                         if (art != null) Canvas(Modifier.fillMaxSize()) { with(art) { drawBackdrop(dark) } }
-                        IterApp(
-                            recordStore = app.recordStore,
-                            recorder = app.driveSessionRecorder,
-                            settings = settings,
-                            onSettingsChange = {
-                                settings = it
-                                app.speedColorSettingsStore.save(it)
-                            },
-                            appScope = app.appScope,
-                            showDebugMenu = BuildConfig.DEBUG,
-                        )
+                        val driving by app.driveSessionRecorder.driving.collectAsState()
+                        val animationsOff = remember { animatorDurationScale() == 0f }
+                        // Asked once per activity; the answer is for the whole process.
+                        val splashPlayed = remember { app.splashPlayed.also { app.splashPlayed = true } }
+                        SplashThenApp(settings.theme, settings.accentArgb(dark), dark, skip = splashPlayed || driving || animationsOff) {
+                            IterApp(
+                                recordStore = app.recordStore,
+                                recorder = app.driveSessionRecorder,
+                                settings = settings,
+                                onSettingsChange = {
+                                    settings = it
+                                    app.speedColorSettingsStore.save(it)
+                                },
+                                appScope = app.appScope,
+                                showDebugMenu = BuildConfig.DEBUG,
+                                animationsOff = animationsOff,
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
+    /** System animator duration scale; 0 means the user turned animations off. */
+    private fun animatorDurationScale(): Float = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
 }

@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -34,6 +35,19 @@ private const val PANEL_FIBRES = 70
 
 /** One backdrop paper fibre per square of this side, in dp. */
 private const val BACKDROP_CELL_DP = 70f
+
+/** Splash: the circle's radius as a share of the box side, where the brush lands and how far it goes round. */
+private const val SPLASH_CIRCLE_RADIUS = 0.33f
+private const val SPLASH_START_DEG = -110f
+private const val SPLASH_SWEEP_DEG = 325f
+
+/** Splash: brush width as a share of the circle's radius, where the brush lands and where it lifts. */
+private const val SPLASH_WIDTH_LANDING = 0.34f
+private const val SPLASH_WIDTH_LIFTING = 0.1f
+
+/** Splash: the circle is brushed over this first share of the draw-in, in this many pieces; then the seal. */
+private const val SPLASH_BRUSH_SPAN = 0.8f
+private const val SPLASH_BRUSH_PIECES = 64
 
 /** The repeating effect: how deep the wash is (0 to 1) and how wet the ink, [loopSeconds] in. */
 private fun washDepth(loopSeconds: Float): Float = 0.75f + 0.25f * sin(loopSeconds * 0.8f)
@@ -246,6 +260,30 @@ internal object InkWashArt : ThemeArt {
         drawSeal(frame.at(last) + Offset(side * 0.035f, side * 0.03f), side * 0.045f, Color(p.sealArgb), progress)
     }
 
+    /** A circle brushed in one go, wide and dark where the brush lands, thin and pale where it lifts; then the seal. */
+    override fun DrawScope.drawSplash(
+        dark: Boolean,
+        progress: Float,
+    ) {
+        val p = palette(dark)
+        val side = size.minDimension
+        val r = side * SPLASH_CIRCLE_RADIUS
+        val topLeft = center - Offset(r, r)
+        val arcSize = Size(r * 2, r * 2)
+        val brushed = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_BRUSH_SPAN))
+        val pieceSweep = SPLASH_SWEEP_DEG / SPLASH_BRUSH_PIECES
+        repeat(SPLASH_BRUSH_PIECES) { i ->
+            val along = i.toFloat() / SPLASH_BRUSH_PIECES
+            val pieceBrushed = ((brushed - along) * SPLASH_BRUSH_PIECES).coerceIn(0f, 1f)
+            if (pieceBrushed <= 0f) return@repeat
+            val width = r * (SPLASH_WIDTH_LANDING + (SPLASH_WIDTH_LIFTING - SPLASH_WIDTH_LANDING) * along)
+            val color = mixArgb(p.inkArgb, p.inkPaleArgb, 0.6f * along * along)
+            // A little overlap hides the seams between pieces.
+            drawArc(color, SPLASH_START_DEG + pieceSweep * i, (pieceSweep + 0.6f) * pieceBrushed, false, topLeft, arcSize, style = Stroke(width))
+        }
+        drawStampedSeal(center + Offset(r, r), side * 0.11f, Color(p.sealArgb), grownFraction(progress, SPLASH_BRUSH_SPAN, 1 - SPLASH_BRUSH_SPAN))
+    }
+
     override fun DrawScope.drawLegendSample(
         signal: LegendSignal,
         dark: Boolean,
@@ -310,8 +348,15 @@ internal object InkWashArt : ThemeArt {
         side: Float,
         color: Color,
         progress: Float,
+    ) = drawStampedSeal(at, side, color, grownFraction(progress, 1 - STAMP_SPAN, STAMP_SPAN))
+
+    /** The seal [stamped] (0 to 1) of the way down onto the paper. */
+    private fun DrawScope.drawStampedSeal(
+        at: Offset,
+        side: Float,
+        color: Color,
+        stamped: Float,
     ) {
-        val stamped = grownFraction(progress, 1 - STAMP_SPAN, STAMP_SPAN)
         if (stamped <= 0f) return
         val shown = side * (1.5f - 0.5f * stamped)
         drawRoundRect(

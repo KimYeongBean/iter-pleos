@@ -60,6 +60,15 @@ internal interface ThemeArt {
         loopSeconds: Float,
     )
 
+    /**
+     * The theme's splash mark (GLOSSARY: 스플래시), filling the draw scope. It draws in as
+     * [progress] goes 0 to 1 and is whole at 1.
+     */
+    fun DrawScope.drawSplash(
+        dark: Boolean,
+        progress: Float,
+    )
+
     /** A small sample of how [signal] shows, filling the draw scope. */
     fun DrawScope.drawLegendSample(
         signal: LegendSignal,

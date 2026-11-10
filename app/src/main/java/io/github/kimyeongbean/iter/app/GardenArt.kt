@@ -1,5 +1,7 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -46,6 +48,18 @@ private const val LEAF_SPACING = 0.035f
 
 /** One backdrop mark per square of this side, in dp. */
 private const val BACKDROP_CELL_DP = 120f
+
+/** Splash: the stem grows over this first share of the draw-in, drawn in this many pieces. */
+private const val SPLASH_STEM_SPAN = 0.55f
+private const val SPLASH_STEM_PIECES = 20
+
+/** Splash: how far up the stem each leaf sits (0 foot to 1 head), and the share of the draw-in a leaf takes. */
+private val SPLASH_LEAVES = listOf(0.35f, 0.6f)
+private const val SPLASH_LEAF_SPAN = 0.25f
+
+/** Splash: petals of the flower, and the share of the draw-in one takes to open. */
+private const val SPLASH_PETALS = 12
+private const val SPLASH_PETAL_SPAN = 0.22f
 
 /**
  * Garden (정원): the day is a flower with thin petals, the route a stem with leaves, on a flower
@@ -319,6 +333,55 @@ internal object GardenArt : ThemeArt {
             repeat(8) { i -> drawBlade(path, at, i * (PI / 4).toFloat() + turnRad, petal * 0.2f, petal, petal * 0.3f, Color(p.petalFastArgb), PETAL_ALPHA) }
             drawCircle(Color(p.centreArgb), petal * 0.25f, at)
         }
+    }
+
+    /** A stem grows up from a seed mound, two leaves come out, and a flower opens petal by petal. */
+    override fun DrawScope.drawSplash(
+        dark: Boolean,
+        progress: Float,
+    ) {
+        val p = palette(dark)
+        val side = size.minDimension
+        val foot = center + Offset(0f, side * 0.44f)
+        val head = center - Offset(0f, side * 0.14f)
+        val path = Path()
+
+        // The stem leans out and back on its way up.
+        fun stemAt(t: Float) = Offset(foot.x + sin(t * PI.toFloat()) * side * 0.05f, foot.y + (head.y - foot.y) * t)
+
+        val mound = Size(side * 0.2f, side * 0.05f)
+        drawOval(Color(p.colors.outlineArgb), foot - Offset(mound.width / 2, mound.height / 3), mound)
+
+        SPLASH_LEAVES.forEachIndexed { i, leafAt ->
+            val grown = EaseOutBack.transform(grownFraction(progress, SPLASH_STEM_SPAN * leafAt, SPLASH_LEAF_SPAN))
+            if (grown <= 0f) return@forEachIndexed
+            val leafSide = if (i % 2 == 0) 1f else -1f
+            val length = side * 0.13f * grown
+            drawBlade(path, stemAt(leafAt), -(PI / 2).toFloat() + leafSide * LEAF_ANGLE_RAD, 0f, length, length * 0.34f, Color(p.leafFastArgb), 1f)
+        }
+        val stemGrown = FastOutSlowInEasing.transform(grownFraction(progress, 0f, SPLASH_STEM_SPAN))
+        repeat(SPLASH_STEM_PIECES) { i ->
+            drawLine(
+                Color(p.stemArgb),
+                stemAt(stemGrown * i / SPLASH_STEM_PIECES),
+                stemAt(stemGrown * (i + 1) / SPLASH_STEM_PIECES),
+                side * 0.022f,
+                StrokeCap.Round,
+            )
+        }
+
+        // Petals open one after another round the flower, the last one as the draw-in ends.
+        val firstOpens = SPLASH_STEM_SPAN - 0.05f
+        val opensEvery = (1f - SPLASH_PETAL_SPAN - firstOpens) / (SPLASH_PETALS - 1)
+        repeat(SPLASH_PETALS) { i ->
+            val open = EaseOutBack.transform(grownFraction(progress, firstOpens + opensEvery * i, SPLASH_PETAL_SPAN))
+            if (open <= 0f) return@repeat
+            val angleRad = -(PI / 2).toFloat() + i * (2 * PI / SPLASH_PETALS).toFloat()
+            val color = mixArgb(p.petalSlowArgb, p.petalFastArgb, if (i % 2 == 0) 1f else 0.55f)
+            drawBlade(path, head, angleRad, side * 0.04f, side * 0.04f + side * 0.26f * open, side * 0.05f, color, PETAL_ALPHA)
+        }
+        val centreGrown = EaseOutBack.transform(grownFraction(progress, firstOpens, SPLASH_PETAL_SPAN))
+        if (centreGrown > 0f) drawCircle(Color(p.centreArgb), side * 0.055f * centreGrown, head)
     }
 
     override fun DrawScope.drawLegendSample(
