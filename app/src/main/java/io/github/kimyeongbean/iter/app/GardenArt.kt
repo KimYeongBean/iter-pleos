@@ -148,10 +148,7 @@ internal object GardenArt : ThemeArt {
         val p = palette(dark)
         val tuft = Color(p.backdropTuftArgb)
         val soil = Color(p.backdropSoilArgb)
-        val cell = BACKDROP_CELL_DP * density
-        val count = (size.width * size.height / (cell * cell)).toInt()
-        repeat(count) { i ->
-            val at = Offset(scatter(i, 1) * size.width, scatter(i, 2) * size.height)
+        forEachBackdropSpot(BACKDROP_CELL_DP) { i, at ->
             if (i % 3 == 0) {
                 drawCircle(soil, radius = (2f + 3f * scatter(i, 3)) * density, center = at)
             } else {
@@ -298,9 +295,8 @@ internal object GardenArt : ThemeArt {
                 drawSegment(a, b, progress, frame, if (a.lowBeamOn || b.lowBeamOn) stemLowBeam else stem, stemWidth)
             }
             // A bud where the turn signal comes on.
-            stroke.forEachIndexed { i, point ->
-                val comesOn = point.turnSignalOn && (i == 0 || !stroke[i - 1].turnSignalOn)
-                if (!comesOn || progress < point.timePosition) return@forEachIndexed
+            stroke.forEachTurnSignalStart { i, point ->
+                if (progress < point.timePosition) return@forEachTurnSignalStart
                 val at = frame.at(point)
                 val next = frame.at(stroke[minOf(i + 1, stroke.lastIndex)])
                 val besideRad = atan2(next.y - at.y, next.x - at.x) + (PI / 2).toFloat()

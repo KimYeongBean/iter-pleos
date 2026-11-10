@@ -33,6 +33,7 @@
     <string name="theme_paper">종이</string>
     <string name="theme_circuit">서킷</string>
     <string name="theme_garden">정원</string>
+    <string name="theme_constellation">별자리</string>
     <string name="speed_color_amber">호박색</string>
     <string name="speed_color_lime">라임</string>
     <string name="speed_color_cyan">청록</string>
