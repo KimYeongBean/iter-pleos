@@ -73,7 +73,7 @@ internal fun Modifier.dayArtSharedElement(
 }
 
 /**
- * The day screen (그날 화면) of [date]: the big day art above, the map graph below.
+ * The day screen (그날 화면) of [date]: the big day art on the left, the map graph on the right.
  * [dayArt] and [route] are null while loading.
  * When [playDrawIn], the full day art first grows out of the grass cell, then both draw in drive
  * time order once their data is ready. A tap anywhere skips both to the end. [onDrawInStarted] is
@@ -117,13 +117,14 @@ internal fun DayScreen(
             TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
             Text(dateText, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 8.dp))
         }
-        // Day art and map graph share the height as two squares, so both fit without scrolling.
-        Column(
+        // Day art left, map graph right: two squares sharing the width, shrinking to the height
+        // when that is shorter, so both fit without scrolling on the wide head unit screen.
+        Row(
             Modifier.weight(1f).fillMaxWidth().padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.Top,
         ) {
-            val square = Modifier.weight(1f).aspectRatio(1f, matchHeightConstraintsFirst = true)
+            val square = Modifier.weight(1f, fill = false).aspectRatio(1f)
             Box(
                 square
                     .dayArtSharedElement(date, sharedTransitionScope, animatedVisibilityScope)
