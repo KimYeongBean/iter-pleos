@@ -1,6 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -235,12 +234,7 @@ private fun TodayCard(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Month, day and weekday in the locale's order, without the year ("11월 10일 화요일").
-    val dateText =
-        remember(today) {
-            val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMdEEEE")
-            today.format(DateTimeFormatter.ofPattern(pattern))
-        }
+    val dateText = remember(today) { monthDayWeekdayText(today) }
     val openLabel = stringResource(R.string.today_card_open)
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     val summaryText =
