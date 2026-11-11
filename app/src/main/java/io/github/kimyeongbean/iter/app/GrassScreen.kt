@@ -165,6 +165,8 @@ internal fun GrassScreen(
                     DayArtDisc(
                         heroArt,
                         panel,
+                        behindPlates = true,
+                        modifier =
                         Modifier
                             .offset(heroAt.x, heroAt.y)
                             .size(heroSide)

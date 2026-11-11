@@ -110,7 +110,7 @@ internal fun SettingsScreen(
                 Crossfade(settings, animationSpec = tween(COLOR_CHANGE_MS), label = "preview") { shown ->
                     val panel = shown.panel(dark)
                     val sample = remember(panel.speedColorBaseArgb) { sampleDayArt(panel.speedColorBaseArgb) }
-                    DayArtDisc(sample, panel, Modifier.offset(artAt.x, artAt.y).size(artSide).clearAndSetSemantics {})
+                    DayArtDisc(sample, panel, Modifier.offset(artAt.x, artAt.y).size(artSide).clearAndSetSemantics {}, behindPlates = true)
                 }
             },
         ) {

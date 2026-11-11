@@ -209,8 +209,10 @@ internal fun DayScreen(
                 art = panel.art,
                 moving = animateLoop,
                 backdrop = {
-                    if (plain) Box(Modifier.fillMaxSize().background(Color(panel.argb)))
-                    map(Modifier.padding(start = mapArea.left, top = mapArea.top).size(mapArea.width, mapArea.height))
+                    val place = Modifier.padding(start = mapArea.left, top = mapArea.top).size(mapArea.width, mapArea.height)
+                    // A plain theme's map graph sits on a plate of its panel colour, like its day art on a
+                    // disc: as the whole backdrop, a panel of the other brightness would wash out the glass.
+                    map(if (plain) place.clip(PlateShape).background(Color(panel.argb)) else place)
                 },
             ) {
                 Column(

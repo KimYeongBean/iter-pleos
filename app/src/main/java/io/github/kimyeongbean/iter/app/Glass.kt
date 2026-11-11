@@ -68,8 +68,11 @@ internal class GlassLook(
         /** A plate on the scene: cards, the calendar, the day screen pillar. */
         val Panel = GlassLook(0.32f, 0.12f, 0.85f, blur = 32.dp, elevation = 24.dp, sheen = true)
 
-        /** The "기록 중" plate: a little whiter, so it reads at a glance. */
-        val Strong = GlassLook(0.36f, 0.16f, 0.9f, blur = 32.dp, elevation = 24.dp, sheen = true)
+        /**
+         * The "기록 중" plate: whiter than the others, so its text reads at a glance and keeps 4.5:1
+         * over the blurred mark behind it.
+         */
+        val Strong = GlassLook(0.58f, 0.42f, 0.9f, blur = 32.dp, elevation = 24.dp, sheen = true)
 
         /** A small label on the scene, such as the start and end time on the map graph. */
         val Chip = GlassLook(0.7f, 0.7f, 1f, blur = 20.dp, elevation = 8.dp, sheen = false)
