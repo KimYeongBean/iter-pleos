@@ -13,6 +13,7 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /** Day art: radius of the brushed circle, as a share of the drawing radius. */
 private const val CIRCLE_RADIUS = 0.6f
@@ -32,8 +33,14 @@ private const val STAMP_SPAN = 0.06f
 /** Paper fibres scattered over the map graph panel. */
 private const val PANEL_FIBRES = 70
 
+/** Pieces a backdrop brush stroke is drawn in. */
+private const val BRUSH_PIECES = 60
+
+/** Bristle streaks a backdrop brush stroke splits into as it runs dry. */
+private const val BRISTLES = 4
+
 /** One backdrop paper fibre per square of this side, in dp. */
-private const val BACKDROP_CELL_DP = 70f
+private const val BACKDROP_CELL_DP = 85f
 
 /** Splash: the circle's radius as a share of the box side, where the brush lands and how far it goes round. */
 private const val SPLASH_CIRCLE_RADIUS = 0.33f
@@ -96,6 +103,8 @@ internal object InkWashArt : ThemeArt {
         /** Orange-leaning, not red: red is the Pleos warning colour. */
         val sealArgb: Int,
         val backdropFibreArgbs: List<Int>,
+        /** A few faint brush strokes on the paper. */
+        val backdropBrushArgb: Int,
     )
 
     private val light =
@@ -106,6 +115,7 @@ internal object InkWashArt : ThemeArt {
             washArgb = 0xFFC9BFAA.toInt(),
             sealArgb = 0xFFC2410C.toInt(),
             backdropFibreArgbs = listOf(0xFFE4DCC9.toInt(), 0xFFDFD6C2.toInt()),
+            backdropBrushArgb = 0xFFD8CEB8.toInt(),
         )
 
     private val dark =
@@ -116,6 +126,7 @@ internal object InkWashArt : ThemeArt {
             washArgb = 0xFF423E37.toInt(),
             sealArgb = 0xFFF0763A.toInt(),
             backdropFibreArgbs = listOf(0xFF1B1916.toInt(), 0xFF1F1C19.toInt()),
+            backdropBrushArgb = 0xFF2B2722.toInt(),
         )
 
     private fun palette(dark: Boolean) = if (dark) this.dark else light
@@ -132,13 +143,71 @@ internal object InkWashArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).backdropFibreArgbs
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { it.backdropFibreArgbs + it.backdropBrushArgb }
 
-    /** Short paper fibres lying every way. */
+    /** Short paper fibres lying every way, and a few faint brush strokes. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {
-        val fibres = palette(dark).backdropFibreArgbs.map { Color(it) }
+        val p = palette(dark)
+        val fibres = p.backdropFibreArgbs.map { Color(it) }
         forEachBackdropSpot(BACKDROP_CELL_DP) { i, at ->
-            drawFibre(i, at, (8f + 16f * scatter(i, 4)) * density, 1.4f * density, fibres[i % fibres.size])
+            // Three lengths, so near and far fibres read apart.
+            drawFibre(i, at, (8f + 7f * backdropSizeStep(i)) * density, 1.4f * density, fibres[i % fibres.size])
+        }
+        val brush = Color(p.backdropBrushArgb)
+        BackdropStrokes.forEachIndexed { index, stroke -> drawBrushStroke(index, stroke, brush) }
+    }
+
+    /** A backdrop brush stroke: a curve (four points, shares of the screen) and its widest width (share of the short side). */
+    private class BrushStroke(
+        val points: List<Offset>,
+        val width: Float,
+    )
+
+    private val BackdropStrokes =
+        listOf(
+            BrushStroke(listOf(Offset(0.02f, 0.14f), Offset(0.12f, 0.04f), Offset(0.22f, 0.16f), Offset(0.36f, 0.06f)), 0.026f),
+            BrushStroke(listOf(Offset(0.41f, 0.97f), Offset(0.47f, 0.84f), Offset(0.4f, 0.72f), Offset(0.46f, 0.56f)), 0.02f),
+            BrushStroke(listOf(Offset(0.02f, 0.86f), Offset(0.18f, 0.72f), Offset(0.34f, 0.94f), Offset(0.52f, 0.8f)), 0.03f),
+            BrushStroke(listOf(Offset(0.62f, 0.1f), Offset(0.74f, 0.03f), Offset(0.86f, 0.17f), Offset(0.99f, 0.07f)), 0.02f),
+        )
+
+    /**
+     * One stroke: lands wide, lifts thin, and runs dry towards its end, where the body fades and
+     * splits into a few bristle streaks. Always the same for the same [index].
+     */
+    private fun DrawScope.drawBrushStroke(
+        index: Int,
+        stroke: BrushStroke,
+        color: Color,
+    ) {
+        val (a, b, c, d) = stroke.points.map { Offset(it.x * size.width, it.y * size.height) }
+
+        fun at(t: Float): Offset {
+            val u = 1 - t
+            return a * (u * u * u) + b * (3 * u * u * t) + c * (3 * u * t * t) + d * (t * t * t)
+        }
+        val widest = size.minDimension * stroke.width
+
+        fun width(t: Float) = widest * sqrt(sin(PI.toFloat() * (t + 0.02f)).coerceAtLeast(0f)) * (1.1f - 0.5f * t)
+        for (k in 0 until BRUSH_PIECES) {
+            val t0 = k / BRUSH_PIECES.toFloat()
+            val t1 = (k + 1) / BRUSH_PIECES.toFloat()
+            // The body runs out of ink towards the end.
+            val ink = 0.85f * (1f - ((t0 - 0.55f) / 0.45f).coerceIn(0f, 1f) * 0.85f)
+            drawLine(color, at(t0), at(t1), width(t0), StrokeCap.Round, alpha = ink)
+            if (t0 < 0.45f) continue
+            // Dry brush: bristle streaks part from the body and carry on a little further.
+            val ahead = at(t1) - at(t0)
+            val step = ahead.getDistance().coerceAtLeast(0.001f)
+            val normal = Offset(-ahead.y / step, ahead.x / step)
+            val spread = (t0 - 0.45f) / 0.55f
+            repeat(BRISTLES) { b ->
+                val side = (b - (BRISTLES - 1) / 2f) / BRISTLES
+                val shift = normal * (width(t0) * (0.25f + 0.35f * spread) * side * 2f)
+                val dryness = scatter(index * BRISTLES + b, 82)
+                if (spread > 0.6f + 0.4f * dryness) return@repeat
+                drawLine(color, at(t0) + shift, at(t1) + shift, widest * 0.07f, StrokeCap.Round, alpha = 0.7f * (1f - spread * 0.6f))
+            }
         }
     }
 

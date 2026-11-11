@@ -93,7 +93,7 @@ internal fun IterApp(
     val inProgress by recorder.inProgress.collectAsState()
     if (driving) {
         // Swapped in without a transition: leaving the record screens stops their animations at once.
-        RecordingScreen(settings.accentArgb(dark), onEnd = if (inProgress) recorder::requestEnd else null)
+        RecordingScreen(settings.accentArgb(dark), settings.theme.art, onEnd = if (inProgress) recorder::requestEnd else null)
         return
     }
 
@@ -139,6 +139,7 @@ internal fun IterApp(
                             screen = Screen.DAY
                         },
                         onOpenSettings = { screen = Screen.SETTINGS },
+                        animateBackdrop = !animationsOff,
                         onOpenDebugMenu = if (showDebugMenu) ({ screen = Screen.DEBUG_MENU }) else null,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@AnimatedContent,
@@ -163,6 +164,7 @@ internal fun IterApp(
                         route = route,
                         summary = summary,
                         panel = panel,
+                        accent = Color(settings.accentArgb(dark)),
                         playDrawIn = date !in drawnInDates && !animationsOff,
                         animateLoop = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
@@ -177,6 +179,7 @@ internal fun IterApp(
                         settings = settings,
                         onChange = onSettingsChange,
                         onBack = { screen = Screen.GRASS },
+                        animateBackdrop = !animationsOff,
                     )
 
                 Screen.DEBUG_MENU ->

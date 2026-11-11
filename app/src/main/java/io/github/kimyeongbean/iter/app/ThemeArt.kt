@@ -16,12 +16,11 @@ import io.github.kimyeongbean.iter.art.DayArtShape
 
 /** Vehicle signals an advanced theme shows in its own way; the legends draw a sample of each. */
 internal enum class LegendSignal(
-    @StringRes val label: Int,
     @StringRes val sectionLabel: Int,
 ) {
-    TURN_SIGNAL(R.string.legend_turn_signal, R.string.legend_turn_signal_section),
-    WIPER(R.string.legend_wiper, R.string.legend_wiper_section),
-    LOW_BEAM(R.string.legend_low_beam, R.string.legend_low_beam_section),
+    TURN_SIGNAL(R.string.legend_turn_signal_section),
+    WIPER(R.string.legend_wiper_section),
+    LOW_BEAM(R.string.legend_low_beam_section),
 }
 
 /**
@@ -43,8 +42,26 @@ internal interface ThemeArt {
     /** Every colour of the backdrop pattern, so tests can check that text reads on each. */
     fun backdropArgbs(dark: Boolean): List<Int>
 
+    /** The ring on today's grass cell, when the theme has its own; null uses the line colour. Not for text. */
+    fun todayMarkArgb(dark: Boolean): Int? = null
+
+    /** The theme's own soft light at the screen edges under the glass plates; null makes one from its colours. */
+    fun glow(dark: Boolean): GlassGlow? = null
+
     /** The backdrop pattern over the whole app background. Never moves. */
     fun DrawScope.drawBackdrop(dark: Boolean)
+
+    /** Whether the theme has a backdrop motion (GLOSSARY: 바탕 연출) over its backdrop pattern. */
+    val backdropMoves: Boolean get() = false
+
+    /**
+     * The backdrop motion at [seconds] since it started: slow, sparse movement over the backdrop
+     * pattern, such as falling snow. Never on the "기록 중" screen, nor with system animations off.
+     */
+    fun DrawScope.drawBackdropMotion(
+        dark: Boolean,
+        seconds: Float,
+    ) {}
 
     fun DrawScope.drawDayArt(
         data: DayArtData,
@@ -194,6 +211,19 @@ internal inline fun DrawScope.forEachBackdropSpot(
     val cell = cellDp * density
     val count = (size.width * size.height / (cell * cell)).toInt()
     repeat(count) { i -> mark(i, Offset(scatter(i, 1) * size.width, scatter(i, 2) * size.height)) }
+}
+
+/**
+ * Which of three sizes backdrop mark [index] is: 0 (far, most), 1 or 2 (near, fewest). Fixed per
+ * mark, so every frame draws the same.
+ */
+internal fun backdropSizeStep(index: Int): Int {
+    val s = scatter(index, 5)
+    return when {
+        s < 0.55f -> 0
+        s < 0.85f -> 1
+        else -> 2
+    }
 }
 
 /** Calls [action] for each point of the stroke where the turn signal comes on. */

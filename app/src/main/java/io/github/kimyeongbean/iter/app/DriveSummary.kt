@@ -17,7 +17,8 @@ internal data class DriveSummary(
     val lastEnd: LocalTime,
 )
 
-private val TimeFormat = DateTimeFormatter.ofPattern("HH:mm")
+/** Clock time to the minute, as the summary and the route's start and end show it. */
+internal val TimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 /** The first start to the last end, as shown: "08:12 – 18:47". */
 internal val DriveSummary.timeSpanText: String

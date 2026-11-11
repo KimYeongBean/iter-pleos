@@ -21,6 +21,7 @@
     <string name="today">오늘</string>
     <string name="today_empty">오늘은 아직 기록이 없어요</string>
     <string name="today_card_open">오늘의 그날 화면 열기</string>
+    <string name="today_open">오늘 기록 보기</string>
     <string name="drive_summary">주행 %1$d회 · %2$s</string>
     <string name="settings_open">설정</string>
     <string name="settings_title">설정</string>
@@ -28,9 +29,9 @@
     <string name="screen_mode_system">시스템</string>
     <string name="screen_mode_light">라이트</string>
     <string name="screen_mode_dark">다크</string>
-    <string name="theme_default_title">기본 테마</string>
-    <string name="theme_plain_title">일반 테마</string>
-    <string name="theme_advanced_title">고급 테마</string>
+    <string name="theme_title">테마</string>
+    <string name="theme_default_title">기본 테마 색</string>
+    <string name="theme_default_hint">색이나 바탕을 고르면 기본 테마로 바뀌어요</string>
     <string name="theme_default">기본</string>
     <string name="theme_ink">잉크</string>
     <string name="theme_paper">종이</string>
@@ -52,9 +53,8 @@
     <string name="day_art_empty">그릴 주행 데이터가 없어요</string>
     <string name="map_graph_description">%1$s 맵 그래프</string>
     <string name="map_graph_no_route">경로 정보 없음</string>
-    <string name="legend_turn_signal">깜빡이</string>
-    <string name="legend_wiper">와이퍼</string>
-    <string name="legend_low_beam">전조등</string>
+    <string name="route_start_time">출발 %1$s</string>
+    <string name="route_end_time">도착 %1$s</string>
     <string name="legend_turn_signal_section">깜빡이 켠 구간</string>
     <string name="legend_low_beam_section">전조등 켠 구간</string>
     <string name="legend_wiper_section">와이퍼 켠 구간</string>

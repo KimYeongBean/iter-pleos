@@ -1,8 +1,13 @@
 package io.github.kimyeongbean.iter.app
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -62,6 +67,22 @@ internal fun DayArt(
             if (drawn > 0f) drawShape(shape, patternColor, sweepFraction = drawn, alpha = 1f)
         }
     }
+}
+
+/**
+ * [DayArt] standing on its own on a glass screen. A plain theme's colours are made for its panel,
+ * so its art sits on a disc of the panel colour; an advanced theme's art draws straight on the scene.
+ */
+@Composable
+internal fun DayArtDisc(
+    data: DayArtData,
+    panel: ThemePanel,
+    modifier: Modifier = Modifier,
+    animateLoop: Boolean = false,
+    drawInProgress: () -> Float = { 1f },
+) {
+    val ground = if (panel.art == null) Modifier.clip(CircleShape).background(Color(panel.argb)) else Modifier
+    Box(modifier.then(ground)) { DayArt(data, panel, Modifier.fillMaxSize(), animateLoop, drawInProgress) }
 }
 
 private fun DrawScope.drawShape(
