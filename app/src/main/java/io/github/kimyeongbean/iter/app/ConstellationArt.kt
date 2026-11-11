@@ -8,9 +8,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.DayArtPattern
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -33,8 +35,33 @@ private const val METEOR_PIECES = 3
 /** Far stars scattered over the map graph panel. */
 private const val PANEL_STARS = 90
 
+/** The Milky Way: its width as a share of the screen's short side, its glows and its dust spacing in dp. */
+private const val MILKY_WAY_WIDTH = 0.16f
+private const val MILKY_WAY_DUST_DP = 13f
+
+/** Bright stars on the backdrop. */
+private const val BRIGHT_STARS = 7
+
+/** A shooting star: one every so often, each a short flight; the first a few seconds in. */
+private const val SHOOTING_STAR_EVERY_SECONDS = 7f
+private const val SHOOTING_STAR_FLIGHT_SECONDS = 0.9f
+private const val SHOOTING_STAR_FIRST_SECONDS = 3f
+
+/**
+ * Rays of the big day art and of a thumbnail. The big art keeps one ray per shape (the drawing data
+ * has at most this many); a thumbnail keeps as many as the garden's petals, so they stay apart.
+ */
+private const val BIG_RAYS = 120
+private const val THUMBNAIL_RAYS = 14
+
 /** One backdrop star per square of this side, in dp. */
-private const val BACKDROP_CELL_DP = 90f
+private const val BACKDROP_CELL_DP = 105f
+
+/** Today's grass cell ring in the light theme: chart gold, deep enough for 3:1 on the glass. */
+private val TODAY_GOLD = 0xFFA07419.toInt()
+
+/** The star chart arcs' radii, as shares of the screen height. */
+private val CHART_ARCS = listOf(1.55f, 1.8f, 2.05f)
 
 /** Splash: the constellation's stars in a unit square, in the order they light up. */
 private val SPLASH_STARS =
@@ -92,18 +119,45 @@ internal object ConstellationArt : ThemeArt {
         val meteorArgb: Int,
         val nebulaArgb: Int,
         val backdropStarArgbs: List<Int>,
+        /** The Milky Way: its soft glow, its dust of tiny stars, and the few bright backdrop stars. */
+        val milkyGlowArgb: Int,
+        val milkyDustArgb: Int,
+        val brightStarArgb: Int,
+        /** Faint arcs like the latitude lines of a printed star chart, or none. */
+        val chartArcArgb: Int? = null,
+        /** Day art ray width, as a share of the usual. */
+        val rayWidthScale: Float = 1f,
+        /** Shooting star tail length, as a share of the screen's short side. */
+        val meteorTail: Float = 0.14f,
+        /** The Milky Way's wide veil and its core, as opacities. */
+        val milkyVeilAlpha: Float = 0.45f,
+        val milkyCoreAlpha: Float = 0.7f,
+        /** How strongly the day art's core glows. */
+        val coreGlowAlpha: Float = 0.85f,
+        /** The map graph's low beam nebula band width, as a share of the short side. */
+        val nebulaWidth: Float = 0.07f,
     )
 
     private val light =
         Palette(
             colors = lightColors,
-            starSlowArgb = 0xFFA9B3D9.toInt(),
+            starSlowArgb = 0xFF7C86C7.toInt(),
             starFastArgb = 0xFF1F2A5C.toInt(),
-            lineArgb = 0xFF9AA5CF.toInt(),
+            lineArgb = 0xFF1F2A5C.toInt(),
             sparkleArgb = 0xFFB7791F.toInt(),
-            meteorArgb = 0xFF454E73.toInt(),
-            nebulaArgb = 0xFFB4BDEB.toInt(),
-            backdropStarArgbs = listOf(0xFFDCE1F2.toInt(), 0xFFD5DBF0.toInt()),
+            meteorArgb = 0xFF1F2A5C.toInt(),
+            nebulaArgb = 0xFFC0C7ED.toInt(),
+            backdropStarArgbs = listOf(0xFFB9C1E4.toInt(), 0xFFC8CEEA.toInt()),
+            milkyGlowArgb = 0xFFC9D0EF.toInt(),
+            milkyDustArgb = 0xFFBAC3E6.toInt(),
+            brightStarArgb = 0xFFE3CF9C.toInt(),
+            chartArcArgb = 0xFFCDD3EE.toInt(),
+            rayWidthScale = 1.5f,
+            meteorTail = 0.07f,
+            milkyVeilAlpha = 0.16f,
+            milkyCoreAlpha = 0.26f,
+            coreGlowAlpha = 0.3f,
+            nebulaWidth = 0.035f,
         )
 
     private val dark =
@@ -116,6 +170,9 @@ internal object ConstellationArt : ThemeArt {
             meteorArgb = 0xFFFFFFFF.toInt(),
             nebulaArgb = 0xFF33407A.toInt(),
             backdropStarArgbs = listOf(0xFF141A33.toInt(), 0xFF1A2140.toInt()),
+            milkyGlowArgb = 0xFF1A2245.toInt(),
+            milkyDustArgb = 0xFF2B3563.toInt(),
+            brightStarArgb = 0xFF3A4675.toInt(),
         )
 
     private fun palette(dark: Boolean) = if (dark) this.dark else light
@@ -132,15 +189,157 @@ internal object ConstellationArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).backdropStarArgbs
+    /** Light: a printed star chart, paper with an indigo cast lit from the top left. */
+    private val lightGlow =
+        GlassGlow(
+            litArgb = 0xFFF7F7FC.toInt(),
+            groundArgb = 0xFFE9EBF6.toInt(),
+            shadeArgb = 0xFFDFE2F0.toInt(),
+            shadowScale = 1.4f,
+        )
 
-    /** Small faint stars, scattered evenly. */
+    override fun todayMarkArgb(dark: Boolean): Int? = if (dark) null else TODAY_GOLD
+
+    override fun glow(dark: Boolean): GlassGlow? = if (dark) null else lightGlow
+
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { it.backdropStarArgbs + listOfNotNull(it.milkyGlowArgb, it.milkyDustArgb, it.brightStarArgb, it.chartArcArgb) }
+
+    /** The Milky Way across the sky, small faint stars scattered evenly and a few bright ones. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {
-        val stars = palette(dark).backdropStarArgbs.map { Color(it) }
+        val p = palette(dark)
+        p.chartArcArgb?.let { argb ->
+            // Arcs round a centre far below the screen, like a chart's latitude lines.
+            val centre = Offset(size.width * 0.5f, size.height * 2.2f)
+            CHART_ARCS.forEach { r -> drawCircle(Color(argb), size.height * r, centre, style = Stroke(1.2f * density)) }
+        }
+        drawMilkyWay(p)
+        val stars = p.backdropStarArgbs.map { Color(it) }
         forEachBackdropSpot(BACKDROP_CELL_DP) { i, at ->
-            drawCircle(stars[i % stars.size], radius = (1.2f + 2.2f * scatter(i, 3)) * density, center = at)
+            // Two sizes, near and far.
+            val near = if (backdropSizeStep(i) == 2) 2.4f else 1.2f
+            drawCircle(stars[i % stars.size], radius = near * density, center = at)
+        }
+        val bright = Color(p.brightStarArgb)
+        repeat(BRIGHT_STARS) { i ->
+            val at = Offset(scatter(i, 51) * size.width, scatter(i, 52) * size.height)
+            val r = (2.5f + 2f * scatter(i, 53)) * density
+            drawCircle(bright, r, at)
+            // A soft cross of light.
+            drawLine(bright, at - Offset(r * 3.5f, 0f), at + Offset(r * 3.5f, 0f), r * 0.35f, StrokeCap.Round)
+            drawLine(bright, at - Offset(0f, r * 3.5f), at + Offset(0f, r * 3.5f), r * 0.35f, StrokeCap.Round)
         }
     }
+
+    /** A soft band from the bottom left to the top right, dusted with tiny stars thickest in its middle. */
+    private fun DrawScope.drawMilkyWay(p: Palette) {
+        val from = Offset(-0.05f * size.width, 0.95f * size.height)
+        val to = Offset(1.05f * size.width, 0.08f * size.height)
+        val along = to - from
+        val length = along.getDistance()
+        val normal = Offset(-along.y / length, along.x / length)
+        val middle = (from + to) / 2f
+        val band = size.minDimension * MILKY_WAY_WIDTH
+        val glow = Color(p.milkyGlowArgb)
+        val angleDeg = atan2(along.y, along.x) * 180f / PI.toFloat()
+        // One smooth band, softest at its edges: a wide faint veil and a narrower, brighter core.
+        rotate(angleDeg, middle) {
+            listOf(band to p.milkyVeilAlpha, band * 0.45f to p.milkyCoreAlpha).forEach { (half, alpha) ->
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to glow.copy(alpha = 0f),
+                        0.5f to glow.copy(alpha = alpha),
+                        1f to glow.copy(alpha = 0f),
+                        startY = middle.y - half,
+                        endY = middle.y + half,
+                    ),
+                    topLeft = Offset(middle.x - length / 2, middle.y - half),
+                    size = Size(length, half * 2),
+                )
+            }
+        }
+        val dust = Color(p.milkyDustArgb)
+        val dustCell = MILKY_WAY_DUST_DP * density
+        val count = (length * band / (dustCell * dustCell)).toInt()
+        repeat(count) { i ->
+            val t = scatter(i, 41)
+            // Two scatters summed: most dust gathers near the band's middle.
+            val across = (scatter(i, 42) + scatter(i, 43) - 1f) * band * 0.8f
+            drawCircle(dust, (0.5f + 0.9f * scatter(i, 44)) * density, from + along * t + normal * across)
+        }
+    }
+
+    override val backdropMoves: Boolean get() = true
+
+    /** Now and then a shooting star crosses the sky, somewhere new each time. */
+    override fun DrawScope.drawBackdropMotion(
+        dark: Boolean,
+        seconds: Float,
+    ) {
+        if (seconds < SHOOTING_STAR_FIRST_SECONDS) return
+        // Shifted, so the first one comes a few seconds in rather than at once.
+        val time = seconds - SHOOTING_STAR_FIRST_SECONDS
+        val n = (time / SHOOTING_STAR_EVERY_SECONDS).toInt()
+        val flown = (time - n * SHOOTING_STAR_EVERY_SECONDS) / SHOOTING_STAR_FLIGHT_SECONDS
+        if (flown > 1f) return
+        val start = Offset((0.35f + 0.6f * scatter(n, 61)) * size.width, (0.04f + 0.3f * scatter(n, 62)) * size.height)
+        val direction = Offset(-0.85f, 0.53f)
+        val head = start + direction * (size.minDimension * 0.4f * flown)
+        val glow = sin(PI.toFloat() * flown)
+        val p = palette(dark)
+        val tail = head - direction * (size.minDimension * p.meteorTail * glow.coerceAtLeast(0.2f))
+        val color = Color(p.meteorArgb)
+        drawLine(
+            Brush.linearGradient(listOf(color.copy(alpha = 0f), color.copy(alpha = glow)), tail, head),
+            tail,
+            head,
+            2f * density,
+            StrokeCap.Round,
+        )
+        drawCircle(color.copy(alpha = glow), 1.8f * density, head)
+    }
+
+    /**
+     * A ray: a run of the day art's shapes, summed up once so drawing only draws. Its speed is the
+     * run's mean; a vehicle signal shows when any shape of the run has it, so no stretch drops out.
+     */
+    private class Ray(
+        /** Drawing angle of the ray's middle, 0 at 3 o'clock. */
+        val midDeg: Float,
+        /** Where the run starts and how far it reaches, in day art degrees (0 at 12 o'clock). */
+        val startDeg: Float,
+        val sweepDeg: Float,
+        val timePosition: Float,
+        val speedIntensity: Float,
+        val turnSignal: Boolean,
+        val wiper: Boolean,
+        val lowBeam: Boolean,
+    )
+
+    private fun rays(
+        data: DayArtData,
+        count: Int,
+    ): List<Ray> {
+        val shapes = data.shapes
+        val perRay = ((shapes.size + count - 1) / count).coerceAtLeast(1)
+        return shapes.chunked(perRay).map { group ->
+            val first = group.first()
+            val last = group.last()
+            val sweep = last.startAngleDeg + last.sweepAngleDeg - first.startAngleDeg
+            Ray(
+                midDeg = (first.startAngleDeg + sweep / 2).toFloat() - 90f,
+                startDeg = first.startAngleDeg.toFloat(),
+                sweepDeg = sweep.toFloat(),
+                timePosition = first.timePosition.toFloat(),
+                speedIntensity = group.sumOf { it.speedIntensity.toDouble() }.toFloat() / group.size,
+                turnSignal = group.any { DayArtPattern.TURN_SIGNAL in it.patterns },
+                wiper = group.any { DayArtPattern.WIPER in it.patterns },
+                lowBeam = group.any { DayArtPattern.LOW_BEAM in it.patterns },
+            )
+        }
+    }
+
+    private val bigRays = LastComputed<DayArtData, List<Ray>> { rays(it, BIG_RAYS) }
+    private val thumbnailRays = LastComputed<DayArtData, List<Ray>> { rays(it, THUMBNAIL_RAYS) }
 
     override fun DrawScope.drawDayArt(
         data: DayArtData,
@@ -153,35 +352,34 @@ internal object ConstellationArt : ThemeArt {
         val p = palette(dark)
         val radius = size.minDimension / 2 * DRAWING_RADIUS_SCALE
         val thumbnail = isThumbnail
-        // A thumbnail keeps about sixteen rays so they stay apart.
-        val step = if (thumbnail) (shapes.size / 16).coerceAtLeast(1) else 1
-        val rayWidth = radius * if (thumbnail) 0.035f else 0.009f
+        // Runs of shapes summed into rays, the same number in the light and the dark theme.
+        val rays = if (thumbnail) thumbnailRays[data] else bigRays[data]
+        val rayWidth = radius * (if (thumbnail) 0.035f else 0.009f) * p.rayWidthScale
         val inner = radius * RAY_INNER_RADIUS
-        for (i in shapes.indices step step) {
-            val shape = shapes[i]
-            val intensity = shape.speedIntensity
-            val midDeg = shape.startAngleDeg + shape.sweepAngleDeg / 2 - 90
-            val angleRad = Math.toRadians(midDeg).toFloat()
+        rays.forEachIndexed { i, ray ->
+            val intensity = ray.speedIntensity
+            val midDeg = ray.midDeg
+            val angleRad = Math.toRadians(midDeg.toDouble()).toFloat()
             val direction = Offset(cos(angleRad), sin(angleRad))
             val outer = radius * (0.25f + 0.6f * intensity.coerceAtLeast(0.06f))
             val color = mixArgb(p.starSlowArgb, p.starFastArgb, intensity)
-            val lit = grownFraction(progress, shape.timePosition.toFloat(), LIGHT_UP_SPAN)
+            val lit = grownFraction(progress, ray.timePosition, LIGHT_UP_SPAN)
             val alpha = DRAW_IN_GHOST_ALPHA + (1 - DRAW_IN_GHOST_ALPHA) * lit
             drawLine(color, center + direction * inner, center + direction * outer, rayWidth, StrokeCap.Round, alpha = alpha)
-            if (thumbnail || lit < 1f) continue
+            if (thumbnail || lit < 1f) return@forEachIndexed
             // The tip twinkles, each ray on its own beat.
             val twinkle = 0.7f + 0.3f * sin(loopSeconds * 2f + i * 1.7f)
             drawCircle(color, radius * (0.008f + 0.012f * intensity) * twinkle, center + direction * outer)
             // One sparkle where the turn signal comes on, not one per ray: they would run together.
-            val turnSignalBefore = i > 0 && DayArtPattern.TURN_SIGNAL in shapes[i - 1].patterns
-            if (DayArtPattern.TURN_SIGNAL in shape.patterns && !turnSignalBefore) {
+            val turnSignalBefore = i > 0 && rays[i - 1].turnSignal
+            if (ray.turnSignal && !turnSignalBefore) {
                 drawSparkle(center + direction * (radius * 0.93f), radius * 0.028f, Color(p.sparkleArgb))
             }
-            if (DayArtPattern.WIPER in shape.patterns && i % 2 == 0) {
+            if (ray.wiper && i % 2 == 0) {
                 val r = radius * 0.99f
                 drawArc(
                     color = Color(p.meteorArgb),
-                    startAngle = midDeg.toFloat() - 2f,
+                    startAngle = midDeg - 2f,
                     sweepAngle = 2.4f,
                     useCenter = false,
                     topLeft = center - Offset(r, r),
@@ -190,12 +388,12 @@ internal object ConstellationArt : ThemeArt {
                     style = Stroke(radius * 0.008f, cap = StrokeCap.Round),
                 )
             }
-            if (DayArtPattern.LOW_BEAM in shape.patterns) {
+            if (ray.lowBeam) {
                 val r = radius * 0.12f
                 drawArc(
                     color = Color(p.nebulaArgb),
-                    startAngle = shape.startAngleDeg.toFloat() - 90f,
-                    sweepAngle = shape.sweepAngleDeg.toFloat() + 0.5f,
+                    startAngle = ray.startDeg - 90f,
+                    sweepAngle = ray.sweepDeg + 0.5f,
                     useCenter = false,
                     topLeft = center - Offset(r, r),
                     size = Size(r * 2, r * 2),
@@ -206,7 +404,7 @@ internal object ConstellationArt : ThemeArt {
         // The core glows and breathes slowly.
         val core = Color(p.starFastArgb)
         val glow = radius * (0.26f + 0.03f * sin(loopSeconds * 1.2f))
-        drawCircle(Brush.radialGradient(listOf(core.copy(alpha = 0.85f), core.copy(alpha = 0f)), center, glow), glow)
+        drawCircle(Brush.radialGradient(listOf(core.copy(alpha = p.coreGlowAlpha), core.copy(alpha = 0f)), center, glow), glow)
         drawCircle(core, radius * 0.04f)
     }
 
@@ -242,7 +440,7 @@ internal object ConstellationArt : ThemeArt {
 
         // The nebula band under stretches with the low beam on.
         val nebula = Color(p.nebulaArgb)
-        route.forEachSegmentTouching({ it.lowBeamOn }) { a, b -> drawSegment(a, b, progress, frame, nebula, side * 0.07f) }
+        route.forEachSegmentTouching({ it.lowBeamOn }) { a, b -> drawSegment(a, b, progress, frame, nebula, side * p.nebulaWidth) }
 
         // Meteors where the wiper was on: every third drop anchor, each crossing on its own beat.
         val meteor = Color(p.meteorArgb)

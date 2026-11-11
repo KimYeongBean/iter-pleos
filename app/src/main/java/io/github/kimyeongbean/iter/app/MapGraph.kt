@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -102,7 +103,10 @@ internal class MapFrame(
     fun at(point: RoutePoint): Offset = at(point.x, point.y)
 }
 
-internal fun DrawScope.mapFrame(): MapFrame {
+internal fun DrawScope.mapFrame(): MapFrame = mapFrame(size)
+
+/** Where the route's unit square sits in a map graph of [size]. */
+internal fun mapFrame(size: Size): MapFrame {
     val side = size.minDimension * (1 - 2 * ROUTE_MARGIN)
     return MapFrame(Offset((size.width - side) / 2, (size.height - side) / 2), side)
 }

@@ -1,14 +1,21 @@
 package io.github.kimyeongbean.iter.app
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.DayArtPattern
 import io.github.kimyeongbean.iter.art.DayArtShape
@@ -62,6 +69,27 @@ internal fun DayArt(
             if (drawn > 0f) drawShape(shape, patternColor, sweepFraction = drawn, alpha = 1f)
         }
     }
+}
+
+/**
+ * [DayArt] standing on its own on a glass screen. A plain theme's colours are made for its panel,
+ * so its art sits on a disc of the panel colour; an advanced theme's art draws straight on the scene.
+ * [behindPlates] is for the big art in a screen's backdrop: there a disc of the opposite brightness
+ * to the screen mode would show through the glass plates and wash out their text, so it is left out.
+ */
+@Composable
+internal fun DayArtDisc(
+    data: DayArtData,
+    panel: ThemePanel,
+    modifier: Modifier = Modifier,
+    behindPlates: Boolean = false,
+    animateLoop: Boolean = false,
+    drawInProgress: () -> Float = { 1f },
+) {
+    val panelIsLight = Color(panel.argb).luminance() > 0.5f
+    val clashes = behindPlates && panelIsLight == isSystemInDarkTheme()
+    val ground = if (panel.art == null && !clashes) Modifier.clip(CircleShape).background(Color(panel.argb)) else Modifier
+    Box(modifier.then(ground)) { DayArt(data, panel, Modifier.fillMaxSize(), animateLoop, drawInProgress) }
 }
 
 private fun DrawScope.drawShape(

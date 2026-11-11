@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.DayArtPattern
@@ -48,8 +49,17 @@ private const val SNOWFALL_SECONDS = 9f
 /** A gust crosses its stretch of the route once per this many seconds. */
 private const val GUST_SECONDS = 2f
 
+/** The far snowman: where it stands along the far hill's left curve, and its size (share of the short side). */
+private const val SNOWMAN_ON_RIDGE = 0.72f
+private const val SNOWMAN_SIZE = 0.01f
+
+/** Falling snow: one flake per square of this side (dp), falling this fast (dp per second) and up to this much faster. */
+private const val FALLING_SNOW_CELL_DP = 110f
+private const val FALLING_SNOW_SLOWEST_DP = 18f
+private const val FALLING_SNOW_SPREAD_DP = 24f
+
 /** One backdrop speck per square of this side, in dp. */
-private const val BACKDROP_CELL_DP = 80f
+private const val BACKDROP_CELL_DP = 95f
 
 /** Splash: the arms grow over this first share of the draw-in; a twig takes this share to sprout. */
 private const val SPLASH_ARM_SPAN = 0.6f
@@ -107,6 +117,12 @@ internal object SnowArt : ThemeArt {
         val shadeArgb: Int,
         val snowfallArgb: Int,
         val backdropSpeckArgbs: List<Int>,
+        /** Snow hills, far and near, the line along their tops, and the far snowman. */
+        val hillFarArgb: Int,
+        val hillNearArgb: Int,
+        val ridgeArgb: Int,
+        val snowmanArgb: Int,
+        val snowmanLineArgb: Int,
     )
 
     private val light =
@@ -123,6 +139,11 @@ internal object SnowArt : ThemeArt {
             shadeArgb = 0xFFB7CADF.toInt(),
             snowfallArgb = 0xFFC6D6E6.toInt(),
             backdropSpeckArgbs = listOf(0xFFDAE5F0.toInt(), 0xFFD3E0EC.toInt()),
+            hillFarArgb = 0xFFF3F7FB.toInt(),
+            hillNearArgb = 0xFFFAFCFE.toInt(),
+            ridgeArgb = 0xFFC9D7E6.toInt(),
+            snowmanArgb = 0xFFFFFFFF.toInt(),
+            snowmanLineArgb = 0xFFBACBDD.toInt(),
         )
 
     private val dark =
@@ -139,6 +160,11 @@ internal object SnowArt : ThemeArt {
             shadeArgb = 0xFF3A5F96.toInt(),
             snowfallArgb = 0xFFB4C6DA.toInt(),
             backdropSpeckArgbs = listOf(0xFF0F1C2D.toInt(), 0xFF122033.toInt()),
+            hillFarArgb = 0xFF0E1A2B.toInt(),
+            hillNearArgb = 0xFF122136.toInt(),
+            ridgeArgb = 0xFF22344D.toInt(),
+            snowmanArgb = 0xFF2A3F5A.toInt(),
+            snowmanLineArgb = 0xFF34496A.toInt(),
         )
 
     private fun palette(dark: Boolean) = if (dark) this.dark else light
@@ -155,13 +181,111 @@ internal object SnowArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).backdropSpeckArgbs
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let {
+        it.backdropSpeckArgbs + listOf(it.hillFarArgb, it.hillNearArgb, it.ridgeArgb, it.snowmanArgb, it.snowmanLineArgb)
+    }
 
-    /** Soft specks of snow, scattered evenly. */
+    /** Soft specks of snow scattered evenly, over snow hills with a snowman far away on the far one. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {
-        val specks = palette(dark).backdropSpeckArgbs.map { Color(it) }
+        val p = palette(dark)
+        val specks = p.backdropSpeckArgbs.map { Color(it) }
         forEachBackdropSpot(BACKDROP_CELL_DP) { i, at ->
-            drawCircle(specks[i % specks.size], radius = (1.5f + 3.5f * scatter(i, 3)) * density, center = at)
+            // Three sizes, so near and far specks read apart.
+            drawCircle(specks[i % specks.size], radius = (1.5f + 1.5f * backdropSizeStep(i)) * density, center = at)
+        }
+        val ridge = Color(p.ridgeArgb).copy(alpha = 0.6f)
+        val ridgeLine = Stroke(1.5f * density)
+        val far = hill(FarHill)
+        drawPath(far, Color(p.hillFarArgb))
+        drawPath(far, ridge, style = ridgeLine)
+        drawSnowman(p, onRidge(FarHill, SNOWMAN_ON_RIDGE))
+        val near = hill(NearHill)
+        drawPath(near, Color(p.hillNearArgb))
+        drawPath(near, ridge, style = ridgeLine)
+    }
+
+    /** A hill: its top is two curves across the screen, given as heights (shares of the screen height). */
+    private class Hill(
+        val left: Float,
+        val c1: Float,
+        val c2: Float,
+        val middle: Float,
+        val c3: Float,
+        val c4: Float,
+        val right: Float,
+    )
+
+    private val FarHill = Hill(0.8f, 0.7f, 0.74f, 0.76f, 0.78f, 0.66f, 0.71f)
+    private val NearHill = Hill(0.9f, 0.82f, 0.95f, 0.88f, 0.85f, 0.86f, 0.89f)
+
+    private fun DrawScope.hill(h: Hill): Path {
+        val w = size.width
+        val y = size.height
+        return Path().apply {
+            moveTo(0f, h.left * y)
+            cubicTo(w * 0.2f, h.c1 * y, w * 0.4f, h.c2 * y, w * 0.55f, h.middle * y)
+            cubicTo(w * 0.7f, h.c3 * y, w * 0.85f, h.c4 * y, w, h.right * y)
+            lineTo(w, y)
+            lineTo(0f, y)
+            close()
+        }
+    }
+
+    /** The point [t] (0 to 1) along the left curve of a hill's top: open ground between the plates. */
+    private fun DrawScope.onRidge(
+        h: Hill,
+        t: Float,
+    ): Offset {
+        val u = 1 - t
+
+        fun bezier(
+            a: Float,
+            b: Float,
+            c: Float,
+            d: Float,
+        ) = u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d
+        return Offset(bezier(0f, 0.2f, 0.4f, 0.55f) * size.width, bezier(h.left, h.c1, h.c2, h.middle) * size.height)
+    }
+
+    /** A tiny snowman standing at [foot]: so small it reads as far away. */
+    private fun DrawScope.drawSnowman(
+        p: Palette,
+        foot: Offset,
+    ) {
+        val body = Color(p.snowmanArgb)
+        val line = Color(p.snowmanLineArgb)
+        val r = size.minDimension * SNOWMAN_SIZE
+        val outline = Stroke(r * 0.12f)
+        val base = foot - Offset(0f, r * 0.85f)
+        val middle = base - Offset(0f, r * 1.45f)
+        val head = middle - Offset(0f, r * 1.05f)
+        // Twig arms.
+        drawLine(line, middle + Offset(-r * 0.6f, 0f), middle + Offset(-r * 1.5f, -r * 0.6f), r * 0.14f, StrokeCap.Round)
+        drawLine(line, middle + Offset(r * 0.6f, 0f), middle + Offset(r * 1.5f, -r * 0.6f), r * 0.14f, StrokeCap.Round)
+        listOf(base to r, middle to r * 0.72f, head to r * 0.5f).forEach { (at, radius) ->
+            drawCircle(body, radius, at)
+            drawCircle(line, radius, at, style = outline)
+        }
+        // A little hat.
+        drawRect(line, head + Offset(-r * 0.32f, -r * 0.95f), Size(r * 0.64f, r * 0.55f))
+        drawLine(line, head + Offset(-r * 0.5f, -r * 0.42f), head + Offset(r * 0.5f, -r * 0.42f), r * 0.12f)
+    }
+
+    override val backdropMoves: Boolean get() = true
+
+    /** Snow falling slowly, each flake at its own pace and swaying a little. */
+    override fun DrawScope.drawBackdropMotion(
+        dark: Boolean,
+        seconds: Float,
+    ) {
+        val flake = Color(palette(dark).snowfallArgb).copy(alpha = 0.7f)
+        val margin = 20f * density
+        val fall = size.height + margin * 2
+        forEachBackdropSpot(FALLING_SNOW_CELL_DP) { i, at ->
+            val speed = (FALLING_SNOW_SLOWEST_DP + FALLING_SNOW_SPREAD_DP * scatter(i, 71)) * density
+            val y = (at.y + seconds * speed) % fall - margin
+            val sway = sin(seconds * 0.7f + i) * 8f * density
+            drawCircle(flake, (1f + 1.8f * scatter(i, 74)) * density, Offset(at.x + sway, y))
         }
     }
 

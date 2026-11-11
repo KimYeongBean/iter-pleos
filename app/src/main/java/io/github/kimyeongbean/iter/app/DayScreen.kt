@@ -14,9 +14,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,12 +25,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,15 +44,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.github.kimyeongbean.iter.art.DayArtData
@@ -61,6 +67,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlin.math.roundToInt
 
 /** Day art draw-in on first open: drive time order, within 1.2 s (Notion 디자인 '애니메이션·전환 기준'). */
 private const val DAY_ART_DRAW_IN_MS = 1_200
@@ -71,18 +78,24 @@ private const val MAP_GRAPH_DRAW_IN_MS = 1_500
 /** Grass cell → day art: the thumbnail grows into the big day art, 350 ms, decelerating. */
 private const val GROW_MS = 350
 
-/** From this width the day art sits left of the map graph (Landscape); narrower, they stack and scroll (Portrait). */
+/** From this width the pillar sits left of the map graph (Landscape); narrower, they stack and scroll (Portrait). */
 private val WIDE_MIN_WIDTH = 1000.dp
 
-/** Share of the width the day art column takes in the wide layout; the map graph gets the rest. */
-private const val DAY_ART_COLUMN_WEIGHT = 0.38f
+/** Width of the glass pillar in the wide layout (시안 B). */
+private val PILLAR_WIDTH = 560.dp
 
-/** Height the summary and legends under the day art keep in the wide layout, however short the window. */
-private val DAY_INFO_MIN_HEIGHT = 220.dp
+/** Height the speed strip and the legend under the day art keep in the pillar, however short the window. */
+private val DAY_INFO_MIN_HEIGHT = 200.dp
 
-/** Legend sample sizes: a wide one for bands and rain, a square one for the day art rings. */
-private val BAND_SAMPLE_SIZE = DpSize(36.dp, 20.dp)
-private val RING_SAMPLE_SIZE = DpSize(28.dp, 28.dp)
+/** Space between the parts of the pillar. */
+private val PILLAR_GAP = 32.dp
+
+/** Legend sample size: wide enough for a band or rain. */
+private val SAMPLE_SIZE = DpSize(40.dp, 24.dp)
+
+/** The start and end time chips sit this far from their point on the route. */
+private val CHIP_GAP = 20.dp
+private val CHIP_HEIGHT = 52.dp
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 private val DayArtGrowTransform = BoundsTransform { _, _ -> tween(GROW_MS, easing = LinearOutSlowInEasing) }
@@ -103,9 +116,12 @@ internal fun Modifier.dayArtSharedElement(
 }
 
 /**
- * The day screen (그날 화면) of [date]: the day art small, the map graph large, each on [panel],
- * with the drive summary line and the legends. [dayArt] and [route] are null while loading;
- * [summary] is null while loading or when the date has no day record.
+ * The day screen (그날 화면) of [date] on glass (시안 B): the map graph over the whole screen on
+ * [panel], and a glass pillar with the date, the drive summary line, the day art in a round window,
+ * the speed strip and one legend. The route's first start and last end get a small glass chip with
+ * the time once the map graph is drawn. [accent] is the theme's line colour for the app background.
+ * [dayArt] and [route] are null while loading; [summary] is null while loading or when the date has
+ * no day record.
  * When [playDrawIn], the full day art first grows out of the grass cell, then both draw in drive
  * time order once their data is ready. A tap anywhere skips both to the end. [onDrawInStarted] is
  * called on open, so the draw-in counts as played even when skipped or left early.
@@ -120,6 +136,7 @@ internal fun DayScreen(
     route: MapRoute?,
     summary: DriveSummary?,
     panel: ThemePanel,
+    accent: Color,
     playDrawIn: Boolean,
     animateLoop: Boolean,
     onDrawInStarted: () -> Unit,
@@ -131,49 +148,43 @@ internal fun DayScreen(
     // The day art shows complete while it grows out of the grass cell; the map graph starts empty.
     val artDrawIn = rememberDrawIn(playDrawIn, startComplete = true, ready = dayArt != null, DAY_ART_DRAW_IN_MS)
     val routeDrawIn = rememberDrawIn(playDrawIn, startComplete = false, ready = route != null, MAP_GRAPH_DRAW_IN_MS)
+    val routeDrawn by remember { derivedStateOf { routeDrawIn.progress.value >= 1f } }
     val scope = rememberCoroutineScope()
     val dateText = remember(date) { monthDayWeekdayText(date) }
     val describedDate = remember(date) { date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
     val artDescription = stringResource(R.string.day_art_description, describedDate)
     val mapDescription = stringResource(R.string.map_graph_description, describedDate)
-    val panelColor = Color(panel.argb)
-    val panelText = Color(panel.textArgb)
-    val panelShape = MaterialTheme.shapes.extraLarge
+    val plain = panel.art == null
+    // A plain theme's map graph and day art sit on its panel colour; an advanced theme's on the scene.
+    val groundText = if (plain) Color(panel.textArgb) else MaterialTheme.colorScheme.onSurface
 
-    val artPanel: @Composable (Modifier) -> Unit = { modifier ->
+    val map: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier.semantics { contentDescription = mapDescription }, contentAlignment = Alignment.Center) {
+            when {
+                route == null -> Unit
+                route.strokes.isEmpty() -> Text(stringResource(R.string.map_graph_no_route), color = groundText)
+                else -> MapGraph(route, panel, Modifier.fillMaxSize(), animateLoop) { routeDrawIn.progress.value }
+            }
+        }
+    }
+    val window: @Composable (Modifier) -> Unit = { modifier ->
+        val ground = if (plain) Modifier.clip(CircleShape).background(Color(panel.argb)) else Modifier.glass(CircleShape, GlassLook.Window)
         Box(
             modifier
-                .aspectRatio(1f)
                 .dayArtSharedElement(date, sharedTransitionScope, animatedVisibilityScope)
-                .clip(panelShape)
-                .background(panelColor)
+                .then(ground)
                 .semantics { contentDescription = artDescription },
             contentAlignment = Alignment.Center,
         ) {
             when {
                 dayArt == null -> Unit
-                dayArt.shapes.isEmpty() -> Text(stringResource(R.string.day_art_empty), color = panelText)
+                dayArt.shapes.isEmpty() -> Text(stringResource(R.string.day_art_empty), color = groundText)
                 else -> DayArt(dayArt, panel, Modifier.fillMaxSize(), animateLoop) { artDrawIn.progress.value }
             }
         }
     }
-    val mapPanel: @Composable (Modifier) -> Unit = { modifier ->
-        Column(modifier.clip(panelShape).background(panelColor)) {
-            Box(
-                Modifier.weight(1f).fillMaxWidth().semantics { contentDescription = mapDescription },
-                contentAlignment = Alignment.Center,
-            ) {
-                when {
-                    route == null -> Unit
-                    route.strokes.isEmpty() -> Text(stringResource(R.string.map_graph_no_route), color = panelText)
-                    else -> MapGraph(route, panel, Modifier.fillMaxSize(), animateLoop) { routeDrawIn.progress.value }
-                }
-            }
-            MapGraphLegend(panel, Modifier.padding(start = 28.dp, end = 28.dp, bottom = 24.dp))
-        }
-    }
-    val infoPanel: @Composable (Modifier) -> Unit = { modifier ->
-        DayInfo(summary, panel, modifier.clip(panelShape).background(panelColor).padding(28.dp))
+    val header: @Composable () -> Unit = {
+        DayHeader(dateText, summary, onBack)
     }
 
     BoxWithConstraints(
@@ -184,157 +195,203 @@ internal fun DayScreen(
             }
         },
     ) {
-        val wide = maxWidth >= WIDE_MIN_WIDTH
-        val gap = if (wide) 32.dp else 16.dp
-        Column(
-            Modifier.fillMaxSize().padding(if (wide) 48.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(gap),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
-                BackButton(onBack, if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height)
-                Text(
-                    dateText,
-                    style = if (wide) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+        if (maxWidth >= WIDE_MIN_WIDTH) {
+            val mapStart = SCREEN_MARGIN_WIDE + PILLAR_WIDTH + SCREEN_MARGIN_WIDE
+            val mapArea =
+                DpArea(
+                    left = mapStart,
+                    top = SCREEN_MARGIN_WIDE,
+                    width = maxWidth - mapStart - SCREEN_MARGIN_WIDE,
+                    height = maxHeight - SCREEN_MARGIN_WIDE * 2,
                 )
-            }
-            if (wide) {
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    BoxWithConstraints(Modifier.weight(DAY_ART_COLUMN_WEIGHT).fillMaxHeight()) {
-                        // A square as wide as its column, but in a short window it shrinks so the
-                        // summary and legends below keep their height.
-                        val artSide = minOf(maxWidth, maxHeight - DAY_INFO_MIN_HEIGHT - gap).coerceAtLeast(0.dp)
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(gap),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            artPanel(Modifier.size(artSide))
-                            infoPanel(Modifier.fillMaxWidth().weight(1f))
+            GlassScene(
+                accent = accent,
+                art = panel.art,
+                moving = animateLoop,
+                backdrop = {
+                    val place = Modifier.padding(start = mapArea.left, top = mapArea.top).size(mapArea.width, mapArea.height)
+                    // A plain theme's map graph sits on a plate of its panel colour, like its day art on a
+                    // disc: as the whole backdrop, a panel of the other brightness would wash out the glass.
+                    map(if (plain) place.clip(PlateShape).background(Color(panel.argb)) else place)
+                },
+            ) {
+                Column(
+                    Modifier
+                        .padding(SCREEN_MARGIN_WIDE)
+                        .width(PILLAR_WIDTH)
+                        .fillMaxHeight()
+                        .glass(PlateShape)
+                        .padding(36.dp),
+                ) {
+                    header()
+                    Spacer(Modifier.height(PILLAR_GAP))
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                        // A circle as wide as the pillar, but in a short window it shrinks so the
+                        // strip and the legend below keep their height.
+                        val side = minOf(maxWidth, maxHeight - DAY_INFO_MIN_HEIGHT - PILLAR_GAP).coerceAtLeast(0.dp)
+                        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                            window(Modifier.size(side))
+                            DayLegend(panel)
                         }
                     }
-                    mapPanel(Modifier.weight(1f - DAY_ART_COLUMN_WEIGHT).fillMaxHeight())
                 }
-            } else {
+                if (route != null && route.strokes.isNotEmpty() && summary != null && routeDrawn) {
+                    RouteTimeChips(route, summary, mapArea)
+                }
+            }
+        } else {
+            GlassScene(accent = accent, art = panel.art, moving = animateLoop) {
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(gap),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(SCREEN_MARGIN_NARROW),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    artPanel(Modifier.fillMaxWidth())
-                    mapPanel(Modifier.fillMaxWidth().aspectRatio(1f))
-                    infoPanel(Modifier.fillMaxWidth())
+                    val shape = RoundedCornerShape(36.dp)
+                    Column(
+                        Modifier.fillMaxWidth().glass(shape).padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                    ) {
+                        header()
+                        window(Modifier.fillMaxWidth().aspectRatio(1f))
+                        DayLegend(panel)
+                    }
+                    val mapGround = if (plain) Modifier.clip(shape).background(Color(panel.argb)) else Modifier.glass(shape, GlassLook.Window)
+                    map(Modifier.fillMaxWidth().aspectRatio(1f).then(mapGround))
                 }
             }
         }
     }
 }
 
-/** Under the day art: the drive summary line, the speed colour legend and the day art pattern legend. */
-@OptIn(ExperimentalLayoutApi::class)
+/** A rectangle in dp: where the map graph is drawn on the screen. */
+private class DpArea(
+    val left: Dp,
+    val top: Dp,
+    val width: Dp,
+    val height: Dp,
+)
+
+/** Back button, the date and the drive summary line. */
 @Composable
-private fun DayInfo(
+private fun DayHeader(
+    dateText: String,
     summary: DriveSummary?,
-    panel: ThemePanel,
-    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
 ) {
-    val text = Color(panel.textArgb)
-    val label = MaterialTheme.typography.labelMedium
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
-        if (summary != null) {
-            Text(
-                stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText),
-                style = MaterialTheme.typography.labelLarge,
-                color = text,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.speed_kmh, 0), style = label, color = text)
-            SpeedColorStrip(panel.speedColorBaseArgb, Modifier.weight(1f).height(16.dp))
-            Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = text)
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val art = panel.art
-            if (art != null) {
-                LegendSignal.entries.forEach { signal ->
-                    LegendItem(stringResource(signal.label), text) { with(art) { drawLegendSample(signal, panel.dark) } }
-                }
-                return@FlowRow
-            }
-            // Each sample is a small day art: the ring sits where the day art draws it. Turn signal is
-            // the solid outer ring, wiper the dashed outermost one, low beam the ring at the centre.
-            LegendItem(stringResource(R.string.legend_turn_signal), text, RING_SAMPLE_SIZE) { ring(text, radiusFraction = 0.8f) }
-            LegendItem(stringResource(R.string.legend_wiper), text, RING_SAMPLE_SIZE) {
-                ring(text, radiusFraction = 0.9f, widthFraction = 0.12f, dashed = true)
-            }
-            LegendItem(stringResource(R.string.legend_low_beam), text, RING_SAMPLE_SIZE) {
-                ring(text, radiusFraction = 0.3f, edgeGuide = true)
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+        BackButton(onBack, IterButtonSize.MEDIUM.height)
+        Column {
+            Text(dateText, style = MaterialTheme.typography.titleLarge)
+            if (summary != null) {
+                Text(
+                    stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
-    }
-}
-
-/** Under the map graph: what its turn signal band, low beam band and rain effect look like. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MapGraphLegend(
-    panel: ThemePanel,
-    modifier: Modifier = Modifier,
-) {
-    val text = Color(panel.textArgb)
-    val effects = panel.effects
-    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val art = panel.art
-        if (art != null) {
-            LegendSignal.entries.forEach { signal ->
-                LegendItem(stringResource(signal.sectionLabel), text) { with(art) { drawLegendSample(signal, panel.dark) } }
-            }
-            return@FlowRow
-        }
-        LegendItem(stringResource(R.string.legend_turn_signal_section), text) { band(Color(effects.turnSignalBandArgb)) }
-        LegendItem(stringResource(R.string.legend_low_beam_section), text) { band(Color(effects.lowBeamArgb)) }
-        LegendItem(stringResource(R.string.legend_wiper_section), text) { rain(Color(effects.rainArgb).copy(alpha = RAIN_ALPHA)) }
-    }
-}
-
-/** One legend entry: a small drawn sample, then what it stands for. */
-@Composable
-private fun LegendItem(
-    label: String,
-    textColor: Color,
-    sampleSize: DpSize = BAND_SAMPLE_SIZE,
-    drawSample: DrawScope.() -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(sampleSize)) { drawSample() }
-        Text(label, style = MaterialTheme.typography.labelMedium, color = textColor)
     }
 }
 
 /**
- * A day art pattern ring at [radiusFraction] of the sample's radius, [widthFraction] of it wide.
- * [edgeGuide] adds a faint circle for the day art's edge, so a ring near the centre reads as inner.
+ * The one legend of the day screen: the speed strip from 0 to 120 km/h, then a sample of how each
+ * vehicle signal shows. A plain theme's colours are made for its panel, so its samples sit on it.
  */
-private fun DrawScope.ring(
-    color: Color,
-    radiusFraction: Float,
-    widthFraction: Float = 0.2f,
-    dashed: Boolean = false,
-    edgeGuide: Boolean = false,
+@Composable
+private fun DayLegend(panel: ThemePanel) {
+    val text = MaterialTheme.colorScheme.onSurfaceVariant
+    val label = MaterialTheme.typography.labelMedium
+    val art = panel.art
+    val sampleGround = if (art == null) Modifier.background(Color(panel.argb), RoundedCornerShape(8.dp)) else Modifier
+    Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.speed_kmh, 0), style = label, color = text)
+            SpeedColorStrip(panel.speedColorBaseArgb, Modifier.weight(1f).height(16.dp).then(sampleGround))
+            Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = text)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            val effects = panel.effects
+            LegendSignal.entries.forEach { signal ->
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(Modifier.size(SAMPLE_SIZE).then(sampleGround)) {
+                        when {
+                            art != null -> with(art) { drawLegendSample(signal, panel.dark) }
+                            signal == LegendSignal.TURN_SIGNAL -> band(Color(effects.turnSignalBandArgb))
+                            signal == LegendSignal.WIPER -> rain(Color(effects.rainArgb).copy(alpha = RAIN_ALPHA))
+                            else -> band(Color(effects.lowBeamArgb))
+                        }
+                    }
+                    Text(stringResource(signal.sectionLabel), style = MaterialTheme.typography.labelLarge, color = text)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The route's first start and last end time, each on a small glass chip just above its point on the
+ * map graph drawn in [area] (below the point when there is no room above, kept inside [area]).
+ */
+@Composable
+private fun RouteTimeChips(
+    route: MapRoute,
+    summary: DriveSummary,
+    area: DpArea,
 ) {
-    val sampleRadius = size.minDimension / 2
-    val strokeWidth = sampleRadius * widthFraction
-    val effect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(strokeWidth * 2, strokeWidth * 2)) else null
-    if (edgeGuide) drawCircle(color, sampleRadius * 0.95f, alpha = 0.3f, style = Stroke(sampleRadius * 0.05f))
-    drawCircle(color, sampleRadius * radiusFraction - strokeWidth / 2, style = Stroke(strokeWidth, pathEffect = effect))
+    val start = route.strokes.first().first()
+    val end = route.strokes.last().last()
+    Layout(
+        content = {
+            TimeChip(stringResource(R.string.route_start_time, summary.firstStart.format(TimeFormat)))
+            TimeChip(stringResource(R.string.route_end_time, summary.lastEnd.format(TimeFormat)))
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) { measurables, constraints ->
+        val chips = measurables.map { it.measure(Constraints()) }
+        val origin = Offset(area.left.toPx(), area.top.toPx())
+        val areaSize = Size(area.width.toPx(), area.height.toPx())
+        val frame = mapFrame(areaSize)
+        val gap = CHIP_GAP.toPx()
+        val placed = mutableListOf<Rect>()
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            listOf(start, end).zip(chips).forEach { (point, chip) ->
+                val at = origin + frame.at(point)
+                val x = (at.x - chip.width / 2).coerceIn(origin.x, origin.x + areaSize.width - chip.width)
+                val above = Rect(Offset(x, at.y - gap - chip.height), Size(chip.width.toFloat(), chip.height.toFloat()))
+                val below = above.translate(0f, gap * 2 + chip.height)
+                // Above unless that runs off the top or onto the other chip.
+                val rect = if (above.top >= origin.y && placed.none { it.overlaps(above) }) above else below
+                placed += rect
+                chip.place(rect.left.roundToInt(), rect.top.roundToInt())
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeChip(text: String) {
+    Box(
+        Modifier.height(CHIP_HEIGHT).glass(RoundedCornerShape(CHIP_HEIGHT / 2), GlassLook.Chip).padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 private fun DrawScope.band(color: Color) {
-    drawRoundRect(color, cornerRadius = CornerRadius(size.height / 2))
+    val height = size.height * 0.5f
+    drawRoundRect(
+        color,
+        topLeft = Offset(size.width * 0.1f, (size.height - height) / 2),
+        size = Size(size.width * 0.8f, height),
+        cornerRadius = CornerRadius(height / 2),
+    )
 }
 
 private fun DrawScope.rain(color: Color) {
-    val strokeWidth = size.height * 0.15f
-    listOf(0.2f, 0.5f, 0.8f).forEach { x ->
-        val top = Offset(size.width * x + size.height * 0.15f, 0f)
-        val bottom = Offset(size.width * x - size.height * 0.15f, size.height)
+    val strokeWidth = size.height * 0.12f
+    listOf(0.3f, 0.5f, 0.7f).forEach { x ->
+        val top = Offset(size.width * x + size.height * 0.1f, size.height * 0.15f)
+        val bottom = Offset(size.width * x - size.height * 0.1f, size.height * 0.85f)
         drawLine(color, top, bottom, strokeWidth, StrokeCap.Round)
     }
 }

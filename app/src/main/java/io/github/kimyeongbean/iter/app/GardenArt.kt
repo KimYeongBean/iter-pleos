@@ -44,8 +44,15 @@ private const val PANEL_TUFTS = 48
 /** Distance along the stem between leaves, in route unit square lengths; sides alternate. */
 private const val LEAF_SPACING = 0.035f
 
+/** Leaves on a backdrop stem. */
+private const val STEM_LEAVES = 6
+
 /** One backdrop mark per square of this side, in dp. */
-private const val BACKDROP_CELL_DP = 120f
+private const val BACKDROP_CELL_DP = 140f
+
+/** Still fireflies on the dark bed, and how strongly they glow over it. */
+private const val FIREFLIES = 9
+private const val FIREFLY_ALPHA = 0.3f
 
 /** Splash: the stem grows over this first share of the draw-in, drawn in this many pieces. */
 private const val SPLASH_STEM_SPAN = 0.55f
@@ -72,7 +79,7 @@ internal object GardenArt : ThemeArt {
             cardHighArgb = 0xFFE4E8D2.toInt(),
             controlArgb = 0xFFD5DCC0.toInt(),
             textArgb = 0xFF1E2A1A.toInt(),
-            textSecondaryArgb = 0xFF4A5741.toInt(),
+            textSecondaryArgb = 0xFF36422F.toInt(),
             outlineArgb = 0xFF8C9A7C.toInt(),
             primaryArgb = 0xFF2F5229.toInt(),
             onPrimaryArgb = 0xFFFFFFFF.toInt(),
@@ -81,7 +88,7 @@ internal object GardenArt : ThemeArt {
     override val darkColors =
         IterColors(
             backgroundArgb = 0xFF10160F.toInt(),
-            cardArgb = 0xFF1A2318.toInt(),
+            cardArgb = 0xFF24362C.toInt(),
             cardHighArgb = 0xFF263322.toInt(),
             controlArgb = 0xFF36462F.toInt(),
             textArgb = 0xFFEEF3E6.toInt(),
@@ -90,6 +97,26 @@ internal object GardenArt : ThemeArt {
             primaryArgb = 0xFFEEF3E6.toInt(),
             onPrimaryArgb = 0xFF10160F.toInt(),
         )
+
+    /** Light: pale morning sun from the top left over a pale green bed, a faint pink only round the big flower. */
+    private val lightGlow =
+        GlassGlow(
+            litArgb = 0xFFF9FAEE.toInt(),
+            groundArgb = 0xFFE5EEDC.toInt(),
+            shadeArgb = 0xFFD9E3CF.toInt(),
+            tintArgb = 0xFFF8DCE5.toInt(),
+            tintAt = Offset(0.23f, 0.4f),
+        )
+
+    /** Dark: a moonlit night garden, deep night teal with a cool mint light from the top left. */
+    private val darkGlow =
+        GlassGlow(
+            litArgb = 0xFF2B4D43.toInt(),
+            groundArgb = 0xFF0D1713.toInt(),
+            shadeArgb = 0xFF050A08.toInt(),
+        )
+
+    override fun glow(dark: Boolean): GlassGlow = if (dark) darkGlow else lightGlow
 
     private class Palette(
         val colors: IterColors,
@@ -104,6 +131,11 @@ internal object GardenArt : ThemeArt {
         val rainArgb: Int,
         val backdropTuftArgb: Int,
         val backdropSoilArgb: Int,
+        /** One or two climbing stems with leaves on the bed. */
+        val backdropStemArgb: Int,
+        val backdropLeafArgb: Int,
+        /** A few still fireflies on the night bed, or none. */
+        val fireflyArgb: Int? = null,
     )
 
     private val light =
@@ -120,6 +152,8 @@ internal object GardenArt : ThemeArt {
             rainArgb = 0xFF3F7FB5.toInt(),
             backdropTuftArgb = 0xFFDDE3C8.toInt(),
             backdropSoilArgb = 0xFFE3DFCB.toInt(),
+            backdropStemArgb = 0xFFD2DBBB.toInt(),
+            backdropLeafArgb = 0xFFD8E0C2.toInt(),
         )
 
     // On the dark ground a darker stem cannot stand out, so the low beam stem is a paler one.
@@ -128,15 +162,18 @@ internal object GardenArt : ThemeArt {
             colors = darkColors,
             stemArgb = 0xFF7FB56B.toInt(),
             stemLowBeamArgb = 0xFFD7EDC9.toInt(),
-            leafSlowArgb = 0xFF3E5A34.toInt(),
+            leafSlowArgb = 0xFF4C6E40.toInt(),
             leafFastArgb = 0xFF9AD07E.toInt(),
-            petalSlowArgb = 0xFF6B3A4A.toInt(),
+            petalSlowArgb = 0xFFC84E80.toInt(),
             petalFastArgb = 0xFFFF8FB3.toInt(),
             centreArgb = 0xFFF2C24B.toInt(),
             budArgb = 0xFFE58BA8.toInt(),
             rainArgb = 0xFF8FC3EA.toInt(),
-            backdropTuftArgb = 0xFF1A2417.toInt(),
-            backdropSoilArgb = 0xFF1C2219.toInt(),
+            backdropTuftArgb = 0xFF27402F.toInt(),
+            backdropSoilArgb = 0xFF1C2E23.toInt(),
+            backdropStemArgb = 0xFF2C4A38.toInt(),
+            backdropLeafArgb = 0xFF31533E.toInt(),
+            fireflyArgb = 0xFFF0CC5A.toInt(),
         )
 
     private fun palette(dark: Boolean) = if (dark) this.dark else light
@@ -153,7 +190,10 @@ internal object GardenArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { listOf(it.backdropTuftArgb, it.backdropSoilArgb) }
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { p ->
+        listOf(p.backdropTuftArgb, p.backdropSoilArgb, p.backdropStemArgb, p.backdropLeafArgb) +
+            listOfNotNull(p.fireflyArgb?.let { compositeArgb(it, FIREFLY_ALPHA, p.colors.backgroundArgb) })
+    }
 
     /** Grass tufts and soil specks, scattered evenly. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {
@@ -161,12 +201,72 @@ internal object GardenArt : ThemeArt {
         val tuft = Color(p.backdropTuftArgb)
         val soil = Color(p.backdropSoilArgb)
         forEachBackdropSpot(BACKDROP_CELL_DP) { i, at ->
+            // Three sizes, so near and far marks read apart.
+            val near = backdropSizeStep(i)
             if (i % 3 == 0) {
-                drawCircle(soil, radius = (2f + 3f * scatter(i, 3)) * density, center = at)
+                drawCircle(soil, radius = (1.5f + 1.2f * near) * density, center = at)
             } else {
-                drawTuft(at, height = (8f + 6f * scatter(i, 3)) * density, color = tuft)
+                drawTuft(at, height = (6f + 4.5f * near) * density, color = tuft)
             }
         }
+        BackdropStems.forEach { drawBackdropStem(it, Color(p.backdropStemArgb), Color(p.backdropLeafArgb)) }
+        p.fireflyArgb?.let { argb ->
+            val firefly = Color(argb)
+            repeat(FIREFLIES) { i ->
+                val at = Offset(scatter(i, 95) * size.width, (0.1f + 0.65f * scatter(i, 96)) * size.height)
+                drawCircle(firefly.copy(alpha = FIREFLY_ALPHA * 0.35f), 9f * density, at)
+                drawCircle(firefly.copy(alpha = FIREFLY_ALPHA), 2.4f * density, at)
+            }
+        }
+    }
+
+    /** Backdrop stems: each a curve from the bottom edge up (four points, shares of the screen). */
+    private val BackdropStems =
+        listOf(
+            listOf(Offset(0.015f, 1f), Offset(0.06f, 0.76f), Offset(-0.01f, 0.56f), Offset(0.07f, 0.38f)),
+            listOf(Offset(0.43f, 1f), Offset(0.39f, 0.83f), Offset(0.48f, 0.7f), Offset(0.44f, 0.5f)),
+        )
+
+    /** A stem climbing from the ground with leaves on alternate sides and a bud at its tip. */
+    private fun DrawScope.drawBackdropStem(
+        points: List<Offset>,
+        stem: Color,
+        leaf: Color,
+    ) {
+        val (a, b, c, d) = points.map { Offset(it.x * size.width, it.y * size.height) }
+
+        fun at(t: Float): Offset {
+            val u = 1 - t
+            return a * (u * u * u) + b * (3 * u * u * t) + c * (3 * u * t * t) + d * (t * t * t)
+        }
+        val side = size.minDimension
+        val path =
+            Path().apply {
+                moveTo(a.x, a.y)
+                cubicTo(b.x, b.y, c.x, c.y, d.x, d.y)
+            }
+        drawPath(path, stem, style = Stroke(side * 0.004f, cap = StrokeCap.Round))
+        val leafLength = side * 0.032f
+        for (k in 1..STEM_LEAVES) {
+            val t = k / (STEM_LEAVES + 1f)
+            val foot = at(t)
+            val ahead = at(t + 0.01f) - foot
+            // Each leaf leans and grows a little differently, smaller towards the tip.
+            val lean = 0.75f + 0.35f * scatter(k, 91)
+            val angle = atan2(ahead.y, ahead.x) + (if (k % 2 == 0) 1 else -1) * lean
+            val tip = foot + Offset(cos(angle), sin(angle)) * (leafLength * (1.15f - 0.5f * t) * (0.8f + 0.4f * scatter(k, 92)))
+            val mid = (foot + tip) / 2f
+            val bulge = Offset(-(tip.y - foot.y), tip.x - foot.x) * 0.28f
+            drawPath(
+                Path().apply {
+                    moveTo(foot.x, foot.y)
+                    quadraticTo(mid.x + bulge.x, mid.y + bulge.y, tip.x, tip.y)
+                    quadraticTo(mid.x - bulge.x, mid.y - bulge.y, foot.x, foot.y)
+                },
+                leaf,
+            )
+        }
+        drawCircle(leaf, side * 0.008f, d)
     }
 
     /** A petal: a run of the day art's shapes, summed up once so drawing only draws. */

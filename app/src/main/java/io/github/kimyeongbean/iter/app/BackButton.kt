@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -18,7 +19,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 
-/** A round button with a left chevron; "뒤로" is its accessibility label. */
+/** A round glass button with a left chevron; "뒤로" is its accessibility label. */
 @Composable
 internal fun BackButton(
     onClick: () -> Unit,
@@ -34,8 +35,8 @@ internal fun BackButton(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.size(diameter).then(buttonSemantics),
+        color = Color.Transparent,
+        modifier = Modifier.size(diameter).glass(CircleShape, GlassLook.Control).then(buttonSemantics),
     ) {
         Canvas(Modifier.fillMaxSize().padding(diameter * 0.3f)) {
             val strokeWidth = size.minDimension * 0.12f

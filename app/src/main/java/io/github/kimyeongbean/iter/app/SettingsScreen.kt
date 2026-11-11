@@ -18,12 +18,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,223 +37,287 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import io.github.kimyeongbean.iter.art.DayArtData
 import io.github.kimyeongbean.iter.art.DayArtShape
 import io.github.kimyeongbean.iter.art.SPEED_COLOR_MAX_KMH
 import io.github.kimyeongbean.iter.art.SpeedColor
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.sin
 
 /** Background and speed colour changes crossfade over 200 ms (Notion 디자인 '애니메이션·전환 기준'). */
 private const val COLOR_CHANGE_MS = 200
 
-/** Side of the sample day art on an advanced theme tile: larger than a plain tile's swatch. */
-private val ADVANCED_TILE_ART_SIZE = 132.dp
-
-/** From this width the preview sits right of the choices (Landscape); narrower, it goes below them (Portrait). */
+/** From this width the preview sits left of the choices (Landscape); narrower, the choices come first (Portrait). */
 private val WIDE_MIN_WIDTH = 1000.dp
 
-/** Share of the width the choices take in the wide layout; the preview gets the rest. */
-private const val CHOICES_WEIGHT = 0.48f
+/** Share of the width the choices plate takes in the wide layout (932 of 1680 dp in 시안 B). */
+private const val CHOICES_WIDTH_SHARE = 0.555f
 
-/** Segments of the preview's sample line; its speed rises and falls twice along the way. */
-private const val SAMPLE_LINE_SEGMENTS = 48
+/** The preview card leaves this much of the left side free on its right, so the big art shows. */
+private val PREVIEW_CARD_RIGHT_ROOM = 108.dp
+
+/** A theme tile: its height, and the side of an advanced theme's sample day art on it. */
+private val THEME_TILE_HEIGHT = 148.dp
+private val TILE_ART_SIZE = 84.dp
+
+/** The plain line sample on a default or plain theme tile, in its 96 x 72 box. */
+private val WAVE_SIZE = 96.dp
+private const val WAVE_ASPECT = 72f / 96f
 
 /**
- * Settings: the screen mode, then the theme in a card per kind (default, plain, advanced), with a
- * live preview. The
- * default theme's card holds the speed colour base (five fixed colours) and the map graph background.
+ * Settings on glass (시안 B): the chosen theme's day art large behind everything with a small
+ * preview card, and one glass plate with the screen mode, the theme tiles (default, plain and
+ * advanced themes together) and the default theme's colour and background.
  */
 @Composable
 internal fun SettingsScreen(
     settings: SpeedColorSettings,
     onChange: (SpeedColorSettings) -> Unit,
     onBack: () -> Unit,
+    animateBackdrop: Boolean,
 ) {
+    val dark = isSystemInDarkTheme()
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= WIDE_MIN_WIDTH
-        val gap = if (wide) 32.dp else 16.dp
-        val choices: @Composable (Modifier) -> Unit = { modifier ->
-            Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
-                val cellHeight = if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height
-                SettingCard(R.string.screen_mode_title) {
-                    SegmentedChoice(
-                        choices = ScreenMode.entries,
-                        chosen = settings.screenMode,
-                        label = { it.label },
-                        cellHeight = cellHeight,
-                    ) { onChange(settings.copy(screenMode = it)) }
-                }
-                // The default theme has no tile: picking a colour or a background picks it.
-                SettingCard(R.string.theme_default_title) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SpeedColorChoice(settings, onChange)
-                        SegmentedChoice(
-                            choices = MapBackground.entries,
-                            chosen = settings.background.takeIf { settings.theme == ArtTheme.DEFAULT },
-                            label = { it.label },
-                            cellHeight = cellHeight,
-                        ) { onChange(settings.copy(background = it, theme = ArtTheme.DEFAULT)) }
-                    }
-                }
-                SettingCard(R.string.theme_plain_title) {
-                    PlainThemeChoice(settings, onChange)
-                }
-                SettingCard(R.string.theme_advanced_title) {
-                    AdvancedThemeChoice(settings, onChange)
-                }
-            }
+        val screenWidth = maxWidth
+        val artSide: Dp
+        val artAt: DpOffset
+        if (wide) {
+            val scale = maxHeight.value / MOCKUP_HEIGHT_DP
+            artSide = 1000.dp * scale
+            artAt = DpOffset((-110).dp * scale, 75.dp * scale)
+        } else {
+            artSide = maxWidth * 0.9f
+            artAt = DpOffset(maxWidth * 0.3f, -maxWidth * 0.2f)
         }
-        Column(
-            Modifier.fillMaxSize().padding(if (wide) 48.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(gap),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
-                BackButton(onBack, if (wide) IterButtonSize.MEDIUM.height else IterButtonSize.SMALL.height)
-                Text(
-                    stringResource(R.string.settings_title),
-                    style = if (wide) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                )
-            }
-            if (wide) {
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    // Scrolls when the window is too short for both cards.
-                    choices(Modifier.weight(CHOICES_WEIGHT).verticalScroll(rememberScrollState()))
-                    SpeedColorPreview(settings, Modifier.weight(1f - CHOICES_WEIGHT).fillMaxHeight())
+        GlassScene(
+            accent = Color(settings.accentArgb(dark)),
+            art = settings.theme.art,
+            moving = animateBackdrop,
+            backdrop = {
+                // The preview: a made-up day drawn the chosen theme's way. Decoration only.
+                Crossfade(settings, animationSpec = tween(COLOR_CHANGE_MS), label = "preview") { shown ->
+                    val panel = shown.panel(dark)
+                    val sample = remember(panel.speedColorBaseArgb) { sampleDayArt(panel.speedColorBaseArgb) }
+                    DayArtDisc(sample, panel, Modifier.offset(artAt.x, artAt.y).size(artSide).clearAndSetSemantics {}, behindPlates = true)
                 }
+            },
+        ) {
+            if (wide) {
+                val choicesWidth = screenWidth * CHOICES_WIDTH_SHARE
+                val leftWidth = screenWidth - choicesWidth - SCREEN_MARGIN_WIDE
+                PreviewCard(
+                    settings,
+                    dark,
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(SCREEN_MARGIN_WIDE)
+                        .width(leftWidth - PREVIEW_CARD_RIGHT_ROOM),
+                )
+                Choices(
+                    settings,
+                    onChange,
+                    onBack,
+                    dark,
+                    // Scrolls when the window is too short for all the choices.
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(SCREEN_MARGIN_WIDE)
+                        .width(choicesWidth)
+                        .fillMaxHeight()
+                        .glass(PlateShape)
+                        .verticalScroll(rememberScrollState())
+                        .padding(40.dp),
+                )
             } else {
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(gap),
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(SCREEN_MARGIN_NARROW),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    choices(Modifier.fillMaxWidth())
-                    SpeedColorPreview(settings, Modifier.fillMaxWidth().height(320.dp))
+                    Choices(settings, onChange, onBack, dark, Modifier.fillMaxWidth().glass(RoundedCornerShape(36.dp)).padding(24.dp))
+                    PreviewCard(settings, dark, Modifier.fillMaxWidth())
                 }
             }
         }
     }
 }
 
-/** A card for one setting: its name, then the choice itself. */
+/** Back button and title, then each setting under its name. */
 @Composable
-private fun SettingCard(
+private fun Choices(
+    settings: SpeedColorSettings,
+    onChange: (SpeedColorSettings) -> Unit,
+    onBack: () -> Unit,
+    dark: Boolean,
+    modifier: Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            BackButton(onBack, IterButtonSize.MEDIUM.height)
+            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
+        }
+        Section(R.string.screen_mode_title) {
+            SegmentedChoice(
+                choices = ScreenMode.entries,
+                chosen = settings.screenMode,
+                label = { it.label },
+            ) { onChange(settings.copy(screenMode = it)) }
+        }
+        Section(R.string.theme_title) {
+            ThemeChoice(settings, onChange, dark)
+        }
+        Section(R.string.theme_default_title, hint = R.string.theme_default_hint) {
+            SpeedColorChoice(settings, onChange)
+            SegmentedChoice(
+                choices = MapBackground.entries,
+                chosen = settings.background.takeIf { settings.theme == ArtTheme.DEFAULT },
+                label = { it.label },
+            ) { onChange(settings.copy(background = it, theme = ArtTheme.DEFAULT)) }
+        }
+    }
+}
+
+/** One setting: its name (and a hint beside it), then the choice. */
+@Composable
+private fun Section(
     @StringRes title: Int,
+    @StringRes hint: Int? = null,
     choice: @Composable () -> Unit,
 ) {
-    IterCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
-            choice()
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.alignByBaseline())
+            if (hint != null) {
+                Text(
+                    stringResource(hint),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
         }
+        choice()
     }
 }
 
 /**
- * The plain themes (GLOSSARY: 일반 테마): one tile each, on its own panel ground with its line colour
- * as the swatch.
+ * All themes (GLOSSARY: 테마) as tiles, four to a row: the default and plain themes on their panel
+ * ground with their line as a sample, the advanced themes as a small piece of the theme itself (its
+ * backdrop pattern with a sample day art drawn its way). Picking the default tile keeps the chosen
+ * colour and background.
  */
 @Composable
-private fun PlainThemeChoice(
+private fun ThemeChoice(
     settings: SpeedColorSettings,
     onChange: (SpeedColorSettings) -> Unit,
+    dark: Boolean,
 ) {
-    val dark = isSystemInDarkTheme()
-    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ArtTheme.entries.filter { it.art == null && it != ArtTheme.DEFAULT }.forEach { theme ->
-            val panel = theme.panel(settings.base, settings.background, dark)
-            val tileColor by animateColorAsState(Color(panel.argb), tween(COLOR_CHANGE_MS), label = "themeTile")
-            val textColor by animateColorAsState(Color(panel.textArgb), tween(COLOR_CHANGE_MS), label = "themeTileText")
-            val swatch by animateColorAsState(Color(panel.speedColorBaseArgb), tween(COLOR_CHANGE_MS), label = "themeSwatch")
-            ThemeTile(theme, settings, onChange, tileColor, textColor, Modifier.weight(1f)) {
-                Box(Modifier.size(64.dp).background(swatch, CircleShape))
+    val sample = remember { sampleDayArt(baseArgb = 0) }
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ArtTheme.entries.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { theme -> ThemeTile(theme, settings, onChange, dark, sample, Modifier.weight(1f)) }
             }
         }
     }
 }
 
-/**
- * The advanced themes (GLOSSARY: 고급 테마): one tile each, told from the plain ones at a glance.
- * A tile is a small piece of the theme itself: its backdrop pattern with a sample day art drawn the
- * theme's way.
- */
-@Composable
-private fun AdvancedThemeChoice(
-    settings: SpeedColorSettings,
-    onChange: (SpeedColorSettings) -> Unit,
-) {
-    val dark = isSystemInDarkTheme()
-    val sample = remember { sampleDayArt() }
-    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ArtTheme.entries.forEach { theme ->
-            val art = theme.art ?: return@forEach
-            val colors = theme.appColors(dark)
-            val backdrop =
-                Modifier.drawBehind {
-                    with(art) { drawBackdrop(dark) }
-                }
-            ThemeTile(theme, settings, onChange, Color(colors.backgroundArgb), Color(colors.textArgb), Modifier.weight(1f).then(backdrop)) {
-                // Decoration only: the tile's label names the theme.
-                DayArt(sample, art.panel(dark), Modifier.size(ADVANCED_TILE_ART_SIZE).clearAndSetSemantics {})
-            }
-        }
-    }
-}
-
-/** A theme tile: [picture] over the theme's name on [ground]; the chosen one has a strong outline. */
+/** A theme tile: a picture of the theme over its name; the chosen one has a strong outline. */
 @Composable
 private fun ThemeTile(
     theme: ArtTheme,
     settings: SpeedColorSettings,
     onChange: (SpeedColorSettings) -> Unit,
-    ground: Color,
-    textColor: Color,
-    modifier: Modifier = Modifier,
-    picture: @Composable () -> Unit,
+    dark: Boolean,
+    sample: DayArtData,
+    modifier: Modifier,
 ) {
     val selected = theme == settings.theme
     val shape = MaterialTheme.shapes.large
+    val art = theme.art
+    val panel = theme.panel(settings.base, settings.background, dark)
+    val appColors = theme.appColors(dark)
+    val ground by animateColorAsState(
+        Color(if (art != null) appColors.backgroundArgb else panel.argb),
+        tween(COLOR_CHANGE_MS),
+        label = "themeTile",
+    )
+    val textColor by animateColorAsState(
+        Color(if (art != null) appColors.textArgb else panel.textArgb),
+        tween(COLOR_CHANGE_MS),
+        label = "themeTileText",
+    )
+    val line by animateColorAsState(Color(panel.speedColorBaseArgb), tween(COLOR_CHANGE_MS), label = "themeLine")
     val outline = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val backdrop = if (art != null) Modifier.drawBehind { with(art) { drawBackdrop(dark) } } else Modifier
     Column(
-        Modifier
+        modifier
+            .height(THEME_TILE_HEIGHT)
             .clip(shape)
             .background(ground)
-            .then(modifier)
-            // The outline keeps a tile apart from a card of nearly the same colour.
+            .then(backdrop)
+            // The outline keeps a tile apart from glass of nearly the same colour.
             .border(if (selected) 3.dp else 1.dp, outline, shape)
-            .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(theme = theme)) }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(theme = theme)) },
+        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        picture()
+        // Decoration only: the tile's label names the theme.
+        if (art != null) {
+            DayArt(sample, art.panel(dark), Modifier.size(TILE_ART_SIZE).clearAndSetSemantics {})
+        } else {
+            Wave(line, Modifier.width(WAVE_SIZE).height(WAVE_SIZE * WAVE_ASPECT).clearAndSetSemantics {})
+        }
         Text(
             stringResource(theme.label),
             style = MaterialTheme.typography.labelMedium,
             color = textColor,
+            fontWeight = if (selected) FontWeight.Bold else null,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
-/** Shapes of the sample day art on the advanced theme tiles. */
+/** A short curvy line in [color], the sample on a default or plain theme tile. */
+@Composable
+private fun Wave(
+    color: Color,
+    modifier: Modifier,
+) {
+    Canvas(modifier) {
+        // Drawn on a 96 x 72 grid.
+        val unit = size.width / 96f
+        val path =
+            Path().apply {
+                moveTo(8 * unit, 52 * unit)
+                cubicTo(24 * unit, 8 * unit, 40 * unit, 8 * unit, 48 * unit, 36 * unit)
+                cubicTo(56 * unit, 64 * unit, 72 * unit, 64 * unit, 88 * unit, 20 * unit)
+            }
+        drawPath(path, color, style = Stroke(7 * unit, cap = StrokeCap.Round))
+    }
+}
+
+/** Shapes of the sample day art. */
 private const val SAMPLE_SHAPES = 60
 
 /**
- * A made-up day's drawing data for the advanced theme tiles: speed rising and falling a few times,
- * no vehicle signals. Always the same, never saved.
+ * A made-up day's drawing data: speed rising and falling a few times, no vehicle signals, in the
+ * speed colour of [baseArgb] (an advanced theme reads speed from the shape's length, not its
+ * colour). Always the same, never saved.
  */
-private fun sampleDayArt(): DayArtData {
+private fun sampleDayArt(baseArgb: Int): DayArtData {
     val barSpan = DayArtData.SPEED_BAR_MAX_RADIUS - DayArtData.SPEED_BAR_INNER_RADIUS
     return DayArtData(
         List(SAMPLE_SHAPES) { i ->
@@ -261,12 +328,46 @@ private fun sampleDayArt(): DayArtData {
                 sweepAngleDeg = 360.0 / SAMPLE_SHAPES,
                 innerRadius = DayArtData.SPEED_BAR_INNER_RADIUS,
                 outerRadius = DayArtData.SPEED_BAR_INNER_RADIUS + barSpan * intensity,
-                // An advanced theme reads speed from the shape's length, not its colour.
-                colorArgb = 0,
+                colorArgb = SpeedColor.argb(baseArgb, SPEED_COLOR_MAX_KMH * intensity),
                 patterns = emptySet(),
             )
         },
     )
+}
+
+/**
+ * Under the big art: the chosen theme's name, "미리보기" and the speed strip from 0 to 120 km/h.
+ * A plain theme's strip sits on its panel colour, which its colours are made for.
+ */
+@Composable
+private fun PreviewCard(
+    settings: SpeedColorSettings,
+    dark: Boolean,
+    modifier: Modifier,
+) {
+    val panel = settings.panel(dark)
+    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val label = MaterialTheme.typography.labelMedium
+    val stripGround = if (panel.art == null) Modifier.background(Color(panel.argb), RoundedCornerShape(10.dp)) else Modifier
+    Column(
+        modifier.glass(RoundedCornerShape(40.dp)).padding(horizontal = 32.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(stringResource(settings.theme.label), style = MaterialTheme.typography.titleMedium, modifier = Modifier.alignByBaseline())
+            Text(
+                stringResource(R.string.speed_color_preview_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = secondary,
+                modifier = Modifier.alignByBaseline(),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.speed_kmh, 0), style = label, color = secondary)
+            SpeedColorStrip(panel.speedColorBaseArgb, Modifier.weight(1f).height(20.dp).then(stripGround))
+            Text(stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()), style = label, color = secondary)
+        }
+    }
 }
 
 /** Five swatches on the chosen background: each colour has a variant made for that background. */
@@ -289,8 +390,8 @@ private fun SpeedColorChoice(
                     .background(tileColor)
                     .then(if (selected) Modifier.border(3.dp, textColor, tileShape) else Modifier)
                     .selectable(selected = selected, role = Role.RadioButton) { onChange(settings.copy(base = base, theme = ArtTheme.DEFAULT)) }
-                    .padding(vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(Modifier.size(64.dp).background(swatch, CircleShape))
@@ -306,21 +407,20 @@ private fun SpeedColorChoice(
     }
 }
 
-/** One of a few [choices], as cells side by side (Pleos segmented control). [chosen] may be none. */
+/** One of a few [choices], as cells side by side on a glass track (Pleos segmented control). [chosen] may be none. */
 @Composable
 private fun <T> SegmentedChoice(
     choices: List<T>,
     chosen: T?,
     label: (T) -> Int,
-    cellHeight: Dp,
     onChoose: (T) -> Unit,
 ) {
     val cellShape = MaterialTheme.shapes.medium
     Row(
         Modifier
+            .fillMaxWidth()
             .selectableGroup()
-            .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.background)
+            .glass(MaterialTheme.shapes.large, GlassLook.Track)
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -333,72 +433,24 @@ private fun <T> SegmentedChoice(
                 label = "cell",
             )
             val cellTextColor by animateColorAsState(
-                if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground,
+                if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 tween(COLOR_CHANGE_MS),
                 label = "cellText",
             )
             Box(
                 Modifier
                     .weight(1f)
-                    .heightIn(min = cellHeight)
+                    .heightIn(min = IterButtonSize.MEDIUM.height)
                     .clip(cellShape)
                     .background(cellColor)
                     .selectable(selected = selected, role = Role.RadioButton) { onChoose(choice) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(label(choice)), style = MaterialTheme.typography.bodyMedium, color = cellTextColor)
-            }
-        }
-    }
-}
-
-/**
- * What the choices look like together: a sample line in the speed colour on the theme's panel,
- * over the 0 to 120 km/h strip. Crossfades on change.
- */
-@Composable
-private fun SpeedColorPreview(
-    settings: SpeedColorSettings,
-    modifier: Modifier = Modifier,
-) {
-    val dark = isSystemInDarkTheme()
-    Crossfade(
-        targetState = settings,
-        animationSpec = tween(COLOR_CHANGE_MS),
-        label = "preview",
-        modifier = modifier.clip(MaterialTheme.shapes.extraLarge),
-    ) { shown ->
-        val panel = shown.panel(dark)
-        val baseArgb = panel.speedColorBaseArgb
-        val textColor = Color(panel.textArgb)
-        Column(
-            Modifier.fillMaxSize().background(Color(panel.argb)).padding(32.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            Text(stringResource(R.string.speed_color_preview_title), style = MaterialTheme.typography.labelLarge, color = textColor)
-            // Decoration only: the strip below carries the same colours with their speeds.
-            Canvas(Modifier.weight(1f).fillMaxWidth().clearAndSetSemantics {}) {
-                val strokeWidth = size.minDimension * 0.035f
-
-                fun point(step: Int): Offset {
-                    val t = step.toFloat() / SAMPLE_LINE_SEGMENTS
-                    return Offset(size.width * (0.08f + 0.84f * t), size.height * (0.5f - 0.3f * sin(2 * PI * t).toFloat()))
-                }
-                repeat(SAMPLE_LINE_SEGMENTS) { step ->
-                    val speedKmh = SPEED_COLOR_MAX_KMH * (0.5 - 0.5 * cos(4 * PI * step / SAMPLE_LINE_SEGMENTS))
-                    // Opaque, so the round caps of neighbouring segments do not darken where they overlap.
-                    val alpha = (SpeedColor.argb(baseArgb, speedKmh) ushr 24) / 255f
-                    val color = Color(compositeArgb(baseArgb, alpha, panel.argb))
-                    drawLine(color, point(step), point(step + 1), strokeWidth, StrokeCap.Round)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.speed_kmh, 0), style = MaterialTheme.typography.labelMedium, color = textColor)
-                SpeedColorStrip(baseArgb, Modifier.weight(1f).height(20.dp))
                 Text(
-                    stringResource(R.string.speed_kmh, SPEED_COLOR_MAX_KMH.toInt()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = textColor,
+                    stringResource(label(choice)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cellTextColor,
+                    fontWeight = if (selected) FontWeight.SemiBold else null,
                 )
             }
         }
