@@ -181,10 +181,9 @@ internal object SnowArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> =
-        palette(dark).let {
-            it.backdropSpeckArgbs + listOf(it.hillFarArgb, it.hillNearArgb, it.ridgeArgb, it.snowmanArgb, it.snowmanLineArgb)
-        }
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let {
+        it.backdropSpeckArgbs + listOf(it.hillFarArgb, it.hillNearArgb, it.ridgeArgb, it.snowmanArgb, it.snowmanLineArgb)
+    }
 
     /** Soft specks of snow scattered evenly, over snow hills with a snowman far away on the far one. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {

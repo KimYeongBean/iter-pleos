@@ -357,17 +357,16 @@ private fun todaySummaryText(
     loading: Boolean,
     recorded: Boolean,
     summary: DriveSummary?,
-): String? =
-    when {
-        loading -> null
+): String? = when {
+    loading -> null
 
-        !recorded -> stringResource(R.string.today_empty)
+    !recorded -> stringResource(R.string.today_empty)
 
-        // Recorded, but the summary is still loading.
-        summary == null -> null
+    // Recorded, but the summary is still loading.
+    summary == null -> null
 
-        else -> stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText)
-    }
+    else -> stringResource(R.string.drive_summary, summary.sessionCount, summary.timeSpanText)
+}
 
 /**
  * The today card (GLOSSARY: 오늘 카드), wide: today's day number large, the drive summary line and

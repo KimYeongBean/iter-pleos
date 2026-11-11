@@ -202,8 +202,7 @@ internal object ConstellationArt : ThemeArt {
 
     override fun glow(dark: Boolean): GlassGlow? = if (dark) null else lightGlow
 
-    override fun backdropArgbs(dark: Boolean): List<Int> =
-        palette(dark).let { it.backdropStarArgbs + listOfNotNull(it.milkyGlowArgb, it.milkyDustArgb, it.brightStarArgb, it.chartArcArgb) }
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { it.backdropStarArgbs + listOfNotNull(it.milkyGlowArgb, it.milkyDustArgb, it.brightStarArgb, it.chartArcArgb) }
 
     /** The Milky Way across the sky, small faint stars scattered evenly and a few bright ones. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {

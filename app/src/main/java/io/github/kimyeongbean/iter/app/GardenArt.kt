@@ -190,11 +190,10 @@ internal object GardenArt : ThemeArt {
         )
     }
 
-    override fun backdropArgbs(dark: Boolean): List<Int> =
-        palette(dark).let { p ->
-            listOf(p.backdropTuftArgb, p.backdropSoilArgb, p.backdropStemArgb, p.backdropLeafArgb) +
-                listOfNotNull(p.fireflyArgb?.let { compositeArgb(it, FIREFLY_ALPHA, p.colors.backgroundArgb) })
-        }
+    override fun backdropArgbs(dark: Boolean): List<Int> = palette(dark).let { p ->
+        listOf(p.backdropTuftArgb, p.backdropSoilArgb, p.backdropStemArgb, p.backdropLeafArgb) +
+            listOfNotNull(p.fireflyArgb?.let { compositeArgb(it, FIREFLY_ALPHA, p.colors.backgroundArgb) })
+    }
 
     /** Grass tufts and soil specks, scattered evenly. */
     override fun DrawScope.drawBackdrop(dark: Boolean) {
