@@ -110,6 +110,17 @@ private const val DARK_EDGE_SHARE = 0.3f
 /** Dark glass is the card colour lifted this much towards white, so a plate reads apart from the dark scene. */
 private const val DARK_TINT_LIFT = 0.1f
 
+/** The colour of the glass fill: white in the light mode, the lifted card colour in the dark mode. */
+internal fun glassTint(
+    surfaceContainer: Color,
+    dark: Boolean,
+): Color = if (dark) lerp(surfaceContainer, Color.White, DARK_TINT_LIFT) else Color.White
+
+/** How solid the fill is where its gradient starts and ends. */
+internal fun GlassLook.fillFromAlpha(dark: Boolean): Float = (fillFrom + if (dark) DARK_FILL_EXTRA else 0f).coerceAtMost(1f)
+
+internal fun GlassLook.fillToAlpha(dark: Boolean): Float = (fillTo + if (dark) DARK_FILL_EXTRA else 0f).coerceAtMost(1f)
+
 /** CSS-like `saturate(1.9)` on what shows through, so the colours behind stay lively when blurred. */
 private const val BACKDROP_SATURATION = 1.9f
 
@@ -163,7 +174,7 @@ internal fun glassGlow(
         GlassGlow(
             litArgb = lerp(lerp(background, Color.White, 0.55f), accent, 0.04f).toArgb(),
             groundArgb = backgroundArgb,
-            shadeArgb = lerp(background, Color.Black, 0.05f).toArgb(),
+            shadeArgb = lerp(background, Color.Black, 0.04f).toArgb(),
         )
     }
 }
@@ -174,6 +185,9 @@ private const val LIGHT_POOL_REACH = 0.55f
 
 /** The ground shade starts at this share of the screen height and is full at the bottom. */
 private const val GROUND_SHADE_FROM = 0.7f
+
+/** The theme's faint tint glow is this solid at its centre. */
+internal const val TINT_GLOW_ALPHA = 0.6f
 
 /** The theme's faint tint glow reaches this share of the screen's short side. */
 private const val TINT_REACH = 0.45f
@@ -188,7 +202,7 @@ private fun DrawScope.drawGlow(glow: GlassGlow) {
         val tint = Color(argb)
         val at = Offset(size.width * glow.tintAt.x, size.height * glow.tintAt.y)
         val reach = size.minDimension * TINT_REACH
-        drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.6f), tint.copy(alpha = 0f)), at, reach), reach, at)
+        drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = TINT_GLOW_ALPHA), tint.copy(alpha = 0f)), at, reach), reach, at)
     }
     val shade = Color(glow.shadeArgb)
     drawRect(
@@ -261,10 +275,9 @@ internal fun Modifier.glass(
     val backdrop = LocalGlassBackdrop.current
     val dark = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
-    val tint = if (dark) lerp(scheme.surfaceContainer, Color.White, DARK_TINT_LIFT) else Color.White
-    val extra = if (dark) DARK_FILL_EXTRA else 0f
-    val fillFrom = tint.copy(alpha = (look.fillFrom + extra).coerceAtMost(1f))
-    val fillTo = tint.copy(alpha = (look.fillTo + extra).coerceAtMost(1f))
+    val tint = glassTint(scheme.surfaceContainer, dark)
+    val fillFrom = tint.copy(alpha = look.fillFromAlpha(dark))
+    val fillTo = tint.copy(alpha = look.fillToAlpha(dark))
     val edge = Color.White.copy(alpha = if (dark) look.edgeAlpha * DARK_EDGE_SHARE else look.edgeAlpha)
     val highlight = Color.White.copy(alpha = if (dark) 0.28f else 0.95f)
     val lowlight = Color.White.copy(alpha = if (dark) 0.08f else 0.45f)
