@@ -25,7 +25,7 @@ Pleos 앱 보안 가이드(app-security-guide)는 "기기에 저장하는 민감
 ## 결과
 - 좋아지는 점: 기기에서 DB 파일을 꺼내도 내용을 읽을 수 없다. 보안 가이드의 암호화·키 관리 요구를 충족한다.
 - 감수하는 점:
-  - debug APK 기준 크기가 늘어난다 (ABI별 SQLCipher 네이티브 라이브러리).
+  - APK가 약 21.6MB 커진다. SQLCipher 네이티브 라이브러리가 ABI마다 들어가기 때문이다 (arm64-v8a 5.8MB, armeabi-v7a 4.0MB, x86 5.4MB, x86_64 6.4MB, 비압축 저장). 차량 ABI가 정해지면 `:app`에서 `abiFilters`로 줄일 수 있다 (별도 검토).
   - 처음 열 때 Keystore로 암호를 푸는 시간이 든다. Pleos 에뮬레이터에서 약 150ms였고, 평문 DB를 처음 변환할 때는 샘플 24,149개 기준 약 370ms였다. 기록 저장소는 지금 메인 스레드에서 처음 열린다.
   - Keystore를 잃으면 기록도 잃는다 (백업이 꺼져 있으므로 복구 수단 없음).
 - `:vehicle`: `RecordStore.open`의 시그니처는 그대로다. `docs/interfaces.md`는 바꾸지 않는다.
