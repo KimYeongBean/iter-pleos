@@ -76,13 +76,22 @@ public class RecordStore private constructor(
     public companion object {
         private const val DATABASE_NAME = "records.db"
 
-        /** Opens the store on the device. [zone], read at each save, decides which date a session belongs to. */
+        /**
+         * Opens the store on the device, encrypted (ADR 0003). [zone], read at each save, decides
+         * which date a session belongs to. The first open after the update to encryption also
+         * encrypts an existing plain database, which takes longer the more records there are.
+         */
         public fun open(
             context: Context,
             zone: () -> ZoneId = ZoneId::systemDefault,
         ): RecordStore {
+            val appContext = context.applicationContext
+            val factory = RecordDatabaseEncryption.openHelperFactory(appContext, DATABASE_NAME)
             val database =
-                Room.databaseBuilder(context.applicationContext, RecordDatabase::class.java, DATABASE_NAME).build()
+                Room
+                    .databaseBuilder(appContext, RecordDatabase::class.java, DATABASE_NAME)
+                    .apply { factory?.let { openHelperFactory(it) } }
+                    .build()
             return RecordStore(database, zone)
         }
     }
