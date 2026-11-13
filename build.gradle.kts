@@ -15,6 +15,7 @@ val allowedProjectDependencies = mapOf(
     ":vehicle" to setOf(":model"),
     ":art" to setOf(":model"),
     ":model" to emptySet(),
+    ":probe" to emptySet(),
 )
 // Pure Kotlin/JVM modules: no Android plugin, no Pleos SDK.
 val pureJvmModules = setOf(":art", ":model")

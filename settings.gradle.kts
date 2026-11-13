@@ -26,3 +26,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "iter"
 include(":app", ":vehicle", ":art", ":model")
+// #124 실차 확인용 임시 앱. main에 merge하지 않는다.
+include(":probe")
