@@ -28,8 +28,8 @@ class IterApplication : Application() {
     private var recording: Job? = null
 
     /**
-     * Starts recording drive sessions from the vehicle for the rest of the process (#18). Call after
-     * the runtime permissions were asked: signals without permission are recorded as missing.
+     * Starts recording drive sessions from the vehicle for the rest of the process (#18). The
+     * recording service calls it (#125); signals without permission are recorded as missing.
      * Later calls do nothing.
      */
     fun startRecording() {
