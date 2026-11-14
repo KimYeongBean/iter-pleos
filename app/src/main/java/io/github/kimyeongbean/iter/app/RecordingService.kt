@@ -22,9 +22,10 @@ private const val NOTIFICATION_ID = 1
  * swiped away from recents. It only starts the drive session recorder; the recorder itself
  * decides when a drive session starts and ends.
  *
- * Runs as a location service when it may (screen open, or background location allowed);
- * otherwise as a special use service, and the recorder records without location (#124: Android 14
- * refuses a location service started in the background without background location).
+ * Runs as a location service when it may (location agreed to, and the screen open or background
+ * location allowed); otherwise as a special use service, and the recorder records without location
+ * (#124: Android 14 refuses a location service started in the background without background
+ * location). Without the collection consent (#127) it stops at once and records nothing.
  */
 class RecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
@@ -34,16 +35,19 @@ class RecordingService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        if (!goForeground()) {
+        val app = application as IterApplication
+        val consent = app.consentStore.load()
+        // A service started with startForegroundService must go foreground even to stop at once.
+        val foreground = goForeground(withLocation = consent.recordsLocation)
+        if (!foreground || !app.startRecording()) {
             stopSelf()
             return START_NOT_STICKY
         }
-        (application as IterApplication).startRecording()
         // Restarted by the system if the process is killed for memory.
         return START_STICKY
     }
 
-    private fun goForeground(): Boolean {
+    private fun goForeground(withLocation: Boolean): Boolean {
         val notification = notification()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification)
@@ -51,8 +55,9 @@ class RecordingService : Service() {
         }
         val types =
             buildList {
-                add(ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) add(ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                val specialUse = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                if (withLocation || !specialUse) add(ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                if (specialUse) add(ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             }
         for (type in types) {
             val started = runCatching { startForeground(NOTIFICATION_ID, notification, type) }
@@ -89,8 +94,13 @@ class RecordingService : Service() {
     }
 
     companion object {
-        /** Starts the recording service; a second start while it runs does nothing new. */
+        /**
+         * Starts the recording service if the user agreed to collection (#127); a second start
+         * while it runs only refreshes its type (location once the screen is open).
+         */
         fun start(context: Context) {
+            val app = context.applicationContext as IterApplication
+            if (!app.consentStore.load().agreed) return
             runCatching { context.startForegroundService(Intent(context, RecordingService::class.java)) }
                 .onFailure { Log.w(TAG, "start refused", it) }
         }

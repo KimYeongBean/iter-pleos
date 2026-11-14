@@ -1,6 +1,5 @@
 package io.github.kimyeongbean.iter.app
 
-import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
@@ -13,7 +12,9 @@ import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class RecordingBootReceiverTest {
-    private val app: Application = ApplicationProvider.getApplicationContext()
+    private val app: IterApplication = ApplicationProvider.getApplicationContext()
+
+    private fun agree() = app.consentStore.save(RecordingConsent(RecordingConsent.Answer.AGREED))
 
     private fun receive(action: String) = RecordingBootReceiver().onReceive(app, Intent(action))
 
@@ -21,6 +22,7 @@ class RecordingBootReceiverTest {
 
     @Test
     fun `a boot starts the recording service`() {
+        agree()
         receive(Intent.ACTION_BOOT_COMPLETED)
 
         assertEquals(ComponentName(app, RecordingService::class.java), nextStartedService())
@@ -28,6 +30,7 @@ class RecordingBootReceiverTest {
 
     @Test
     fun `an app update starts the recording service`() {
+        agree()
         receive(Intent.ACTION_MY_PACKAGE_REPLACED)
 
         assertEquals(ComponentName(app, RecordingService::class.java), nextStartedService())
@@ -35,7 +38,24 @@ class RecordingBootReceiverTest {
 
     @Test
     fun `other broadcasts start nothing`() {
+        agree()
         receive(Intent.ACTION_SCREEN_ON)
+
+        assertNull(nextStartedService())
+    }
+
+    @Test
+    fun `without the collection consent a boot starts nothing`() {
+        receive(Intent.ACTION_BOOT_COMPLETED)
+
+        assertNull(nextStartedService())
+    }
+
+    @Test
+    fun `after declining a boot starts nothing`() {
+        app.consentStore.save(RecordingConsent(RecordingConsent.Answer.DECLINED))
+
+        receive(Intent.ACTION_BOOT_COMPLETED)
 
         assertNull(nextStartedService())
     }

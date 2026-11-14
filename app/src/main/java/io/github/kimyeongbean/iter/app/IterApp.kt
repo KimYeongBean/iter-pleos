@@ -44,7 +44,7 @@ private const val SCREEN_MOVE_MS = 300
  * While [recorder] has a drive session in progress, only the still "기록 중" screen shows; the record
  * screens open again once it ends. [settings] is what the user picked; [onSettingsChange] keeps a
  * new pick. [appScope] runs work that must outlive screens and the activity. [animationsOff] is
- * whether the user turned system animations off.
+ * whether the user turned system animations off. [privacy] is the settings' privacy section (#127).
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -56,6 +56,7 @@ internal fun IterApp(
     appScope: CoroutineScope,
     showDebugMenu: Boolean,
     animationsOff: Boolean,
+    privacy: PrivacyActions,
 ) {
     var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
     var openDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
@@ -180,6 +181,7 @@ internal fun IterApp(
                         onChange = onSettingsChange,
                         onBack = { screen = Screen.GRASS },
                         animateBackdrop = !animationsOff,
+                        privacy = privacy,
                     )
 
                 Screen.DEBUG_MENU ->
