@@ -45,6 +45,8 @@ private const val SCREEN_MOVE_MS = 300
  * screens open again once it ends. [settings] is what the user picked; [onSettingsChange] keeps a
  * new pick. [appScope] runs work that must outlive screens and the activity. [animationsOff] is
  * whether the user turned system animations off. [privacy] is the settings' privacy section (#127).
+ * [onStartRecording] is the debug menu's manual start; it asks for the collection consent first
+ * when the user has not agreed.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -57,6 +59,7 @@ internal fun IterApp(
     showDebugMenu: Boolean,
     animationsOff: Boolean,
     privacy: PrivacyActions,
+    onStartRecording: () -> Unit,
 ) {
     var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
     var openDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
@@ -187,7 +190,7 @@ internal fun IterApp(
                 Screen.DEBUG_MENU ->
                     DebugMenuScreen(
                         recordStore = recordStore,
-                        onStartRecording = recorder::requestStart,
+                        onStartRecording = onStartRecording,
                         scope = appScope,
                         onBack = { screen = Screen.GRASS },
                     )

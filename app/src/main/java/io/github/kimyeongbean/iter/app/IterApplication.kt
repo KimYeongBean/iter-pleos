@@ -32,6 +32,9 @@ class IterApplication : Application() {
 
     private var recording: Job? = null
 
+    /** A manual start asked for before recording ran, e.g. while the collection notice was open (#127). */
+    private var manualStartPending = false
+
     /**
      * Starts recording drive sessions from the vehicle for the rest of the process (#18), if the
      * user agreed to collection (#127), with location only if they agreed to that too. The
@@ -46,7 +49,26 @@ class IterApplication : Application() {
             appScope.launch {
                 driveSessionRecorder.recordFromVehicle(this@IterApplication, withLocation = consent.recordsLocation)
             }
+        if (manualStartPending) {
+            manualStartPending = false
+            // Launched after the recording on the same thread, so it lands once recording has begun
+            // (recording drops requests made before it starts).
+            appScope.launch { driveSessionRecorder.requestStart() }
+        }
         return true
+    }
+
+    /**
+     * Asks for a manual drive session start (debug menu). Before recording runs (no consent yet,
+     * or the recording service still starting) it waits and is sent once recording starts.
+     */
+    internal fun requestManualStart() {
+        if (recording != null) driveSessionRecorder.requestStart() else manualStartPending = true
+    }
+
+    /** Drops a manual start that was waiting, when the user declined the notice it waited for. */
+    internal fun cancelManualStart() {
+        manualStartPending = false
     }
 
     /**
@@ -56,6 +78,7 @@ class IterApplication : Application() {
      */
     internal suspend fun withdrawConsent() {
         consentStore.save(RecordingConsent(RecordingConsent.Answer.DECLINED))
+        manualStartPending = false
         stopService(Intent(this, RecordingService::class.java))
         recording?.cancelAndJoin()
         recording = null

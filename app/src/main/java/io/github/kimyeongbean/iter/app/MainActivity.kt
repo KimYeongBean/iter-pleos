@@ -122,6 +122,11 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                 ),
+                                onStartRecording = {
+                                    app.requestManualStart()
+                                    // Not agreed yet: the notice comes first, and agreeing sends the start.
+                                    if (!consent.agreed) notice = Notice.ASK
+                                },
                             )
                         }
                     }
@@ -135,7 +140,7 @@ class MainActivity : ComponentActivity() {
         app.consentStore.save(answer)
         consent = answer
         notice = Notice.NONE
-        if (answer.agreed) startRecording()
+        if (answer.agreed) startRecording() else app.cancelManualStart()
     }
 
     /** Asks for what is still missing, then starts the recording service with whatever was granted. */
