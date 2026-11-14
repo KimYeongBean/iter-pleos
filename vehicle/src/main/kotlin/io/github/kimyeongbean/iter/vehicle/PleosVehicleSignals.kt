@@ -40,16 +40,21 @@ internal const val CAR_SPEED_PERMISSION = "android.car.permission.CAR_SPEED"
 /**
  * The real vehicle signal flow: turn signal, wiper, low beam, steering angle, brake pedal and gear
  * from the Pleos Vehicle SDK, vehicle speed from CarPropertyManager, location from LocationManager
- * (GPS). A signal that cannot be read (no permission, not supported, failed) stays null, and speed 0.
- * Listeners are registered on collection and released when collection stops.
+ * (GPS) when [withLocation]. A signal that cannot be read (no permission, not supported, failed)
+ * stays null, and speed 0. Without [withLocation] location is never asked for, even with the
+ * permission (the user did not agree to it, #127). Listeners are registered on collection and
+ * released when collection stops.
  */
-internal fun pleosVehicleSignals(context: Context): Flow<VehicleSignals> = flow {
+internal fun pleosVehicleSignals(
+    context: Context,
+    withLocation: Boolean,
+): Flow<VehicleSignals> = flow {
     val latest = LatestVehicleSignals()
     val stops = mutableListOf<() -> Unit>()
     try {
         stops += listenPleos(context, latest)
         stops += listenSpeed(context, latest)
-        stops += listenLocation(context, latest)
+        if (withLocation) stops += listenLocation(context, latest)
         emitAll(latest.ticks(System::currentTimeMillis))
     } finally {
         stops.asReversed().forEach { stop -> runCatching(stop).onFailure { Log.w(TAG, "stop failed", it) } }

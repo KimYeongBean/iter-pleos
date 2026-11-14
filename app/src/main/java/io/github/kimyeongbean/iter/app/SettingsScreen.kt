@@ -86,6 +86,7 @@ internal fun SettingsScreen(
     onChange: (SpeedColorSettings) -> Unit,
     onBack: () -> Unit,
     animateBackdrop: Boolean,
+    privacy: PrivacyActions,
 ) {
     val dark = isSystemInDarkTheme()
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -129,6 +130,7 @@ internal fun SettingsScreen(
                     settings,
                     onChange,
                     onBack,
+                    privacy,
                     dark,
                     // Scrolls when the window is too short for all the choices.
                     Modifier
@@ -145,7 +147,7 @@ internal fun SettingsScreen(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(SCREEN_MARGIN_NARROW),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Choices(settings, onChange, onBack, dark, Modifier.fillMaxWidth().glass(RoundedCornerShape(36.dp)).padding(24.dp))
+                    Choices(settings, onChange, onBack, privacy, dark, Modifier.fillMaxWidth().glass(RoundedCornerShape(36.dp)).padding(24.dp))
                     PreviewCard(settings, dark, Modifier.fillMaxWidth())
                 }
             }
@@ -159,6 +161,7 @@ private fun Choices(
     settings: SpeedColorSettings,
     onChange: (SpeedColorSettings) -> Unit,
     onBack: () -> Unit,
+    privacy: PrivacyActions,
     dark: Boolean,
     modifier: Modifier,
 ) {
@@ -184,6 +187,9 @@ private fun Choices(
                 chosen = settings.background.takeIf { settings.theme == ArtTheme.DEFAULT },
                 label = { it.label },
             ) { onChange(settings.copy(background = it, theme = ArtTheme.DEFAULT)) }
+        }
+        Section(R.string.privacy_title) {
+            PrivacyChoice(privacy)
         }
     }
 }
