@@ -21,18 +21,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import kotlinx.coroutines.launch
 
 /**
- * Runtime permissions the drive session recorder needs: vehicle speed and location (#18), and
- * from Android 13 the recording service's notification (#125).
+ * Runtime permissions the drive session recorder needs: vehicle speed (#18), from Android 13 the
+ * recording service's notification (#125), and location only if the user agreed to it (#127).
  */
-private val RECORDING_PERMISSIONS = buildList {
+private fun recordingPermissions(withLocation: Boolean) = buildList {
     add("android.car.permission.CAR_SPEED")
-    add(Manifest.permission.ACCESS_FINE_LOCATION)
-    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    if (withLocation) {
+        add(Manifest.permission.ACCESS_FINE_LOCATION)
+        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
 }
+
+/** Whether the collection notice shows, and whether it asks or is only read again (#127). */
+private enum class Notice { NONE, ASK, READ }
 
 private const val PREFS = "recording"
 private const val PREF_BACKGROUND_LOCATION_ASKED = "background_location_asked"
@@ -47,16 +54,18 @@ class MainActivity : ComponentActivity() {
 
     private val askBackgroundLocation = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
+    private val app get() = application as IterApplication
+
+    /** The user's answer to the collection notice; nothing records before they agree (#127). */
+    private var consent by mutableStateOf(RecordingConsent())
+    private var notice by mutableStateOf(Notice.NONE)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val app = application as IterApplication
-        val missing = RECORDING_PERMISSIONS.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isEmpty()) {
-            RecordingService.start(this)
-            offerBackgroundLocation()
-        } else {
-            askRecordingPermissions.launch(missing.toTypedArray())
-        }
+        val app = app
+        consent = app.consentStore.load()
+        if (consent.agreed) startRecording()
+        if (consent.answer == RecordingConsent.Answer.NOT_ASKED) notice = Notice.ASK
         setContent {
             // Held above the app theme: an advanced theme sets the app colours and the backdrop.
             var settings by remember { mutableStateOf(app.speedColorSettingsStore.load()) }
@@ -76,6 +85,15 @@ class MainActivity : ComponentActivity() {
                     Surface {
                         // Decoration only, and still: it reads no state that changes while a theme is on.
                         if (art != null) Canvas(Modifier.fillMaxSize()) { with(art) { drawBackdrop(dark) } }
+                        if (notice != Notice.NONE) {
+                            ConsentScreen(
+                                accent = Color(settings.accentArgb(dark)),
+                                art = art,
+                                onAnswer = if (notice == Notice.ASK) ::answer else null,
+                                onClose = { notice = Notice.NONE },
+                            )
+                            return@Surface
+                        }
                         val driving by app.driveSessionRecorder.driving.collectAsState()
                         val animationsOff = remember { animatorDurationScale() == 0f }
                         // Asked once per activity; the answer is for the whole process.
@@ -92,6 +110,18 @@ class MainActivity : ComponentActivity() {
                                 appScope = app.appScope,
                                 showDebugMenu = BuildConfig.DEBUG,
                                 animationsOff = animationsOff,
+                                privacy =
+                                PrivacyActions(
+                                    consent = consent,
+                                    onShowNotice = { notice = Notice.READ },
+                                    onAgree = { notice = Notice.ASK },
+                                    onWithdraw = {
+                                        app.appScope.launch {
+                                            app.withdrawConsent()
+                                            consent = app.consentStore.load()
+                                        }
+                                    },
+                                ),
                             )
                         }
                     }
@@ -100,12 +130,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Keeps the user's answer to the notice and, if they agreed, starts recording. */
+    private fun answer(answer: RecordingConsent) {
+        app.consentStore.save(answer)
+        consent = answer
+        notice = Notice.NONE
+        if (answer.agreed) startRecording()
+    }
+
+    /** Asks for what is still missing, then starts the recording service with whatever was granted. */
+    private fun startRecording() {
+        val missing = recordingPermissions(consent.recordsLocation).filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isEmpty()) {
+            RecordingService.start(this)
+            offerBackgroundLocation()
+        } else {
+            askRecordingPermissions.launch(missing.toTypedArray())
+        }
+    }
+
     /**
      * Once, after location was allowed while in use: explains why recording without the screen
      * wants location always, then asks. Declining keeps recording, without location (#125).
      */
     private fun offerBackgroundLocation() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || !consent.recordsLocation) return
         val background = Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
         if (checkSelfPermission(background) == PackageManager.PERMISSION_GRANTED) return

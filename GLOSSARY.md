@@ -13,7 +13,7 @@
 | 샘플 | 주행 세션 안에서 일정 간격으로 찍은 그 순간의 차량 신호 값 묶음 | `Sample` | 항목은 [docs/interfaces.md](docs/interfaces.md) |
 | 차량 신호 흐름 | `:vehicle` 안에서 1초마다 그 순간의 샘플과 기어를 내보내는 입구. 실제는 Pleos SDK 어댑터, 테스트는 가짜 신호 순서 | `Flow<VehicleSignals>` (실제: `pleosVehicleSignals`, 최신 값 `LatestVehicleSignals`) | `:vehicle` 내부. 항목 하나(`VehicleSignals`)가 한 순간의 값. 시각은 샘플 시각을 따름 |
 | 기록 저장소 | 주행 세션을 기기 안에 저장하고 날짜별로 꺼내는 곳. 실제 기록과 가짜 주행 데이터를 같은 방식으로 다룸 | `RecordStore` (모두 지우기 `deleteAll()`) | `:vehicle` 출력. [ADR 0001](docs/adr/0001-fake-drive-data-via-record-store.md) |
-| 주행 세션 기록기 | 차량 신호 흐름으로 주행 세션의 시작·끝을 감지해 기록 저장소에 저장하는 곳. 진행 중 여부와 수동 시작·끝 입구를 가짐 | `DriveSessionRecorder` (진행 중 `inProgress`, 주행 중 `driving`, 수동 시작·끝 `requestStart()`·`requestEnd()`, 실제 차량 신호로 기록 `recordFromVehicle(context)`) | `:vehicle` 출력. [docs/interfaces.md](docs/interfaces.md) 1번 |
+| 주행 세션 기록기 | 차량 신호 흐름으로 주행 세션의 시작·끝을 감지해 기록 저장소에 저장하는 곳. 진행 중 여부와 수동 시작·끝 입구를 가짐 | `DriveSessionRecorder` (진행 중 `inProgress`, 주행 중 `driving`, 수동 시작·끝 `requestStart()`·`requestEnd()`, 실제 차량 신호로 기록 `recordFromVehicle(context, withLocation)`) | `:vehicle` 출력. [docs/interfaces.md](docs/interfaces.md) 1번 |
 | 가짜 주행 데이터 | 실제 차 없이 만든 완성된 주행 세션. 실제 기록과 똑같이 저장되고 보임 | `FakeDriveData` (출처 `DriveSessionSource.FAKE_DRIVE_DATA`) | 출처 표시로만 구분. 세 종류: 정상 `normal` / 급가속·급제동 `harsh` / 신호 일부 누락 `missingSignals`, 날짜마다 한 종류씩 섞은 묶음 `allKinds`. 피할 말: 더미, 목업 데이터 |
 | 맵 그래프 | 주행 경로를 지도 배경 없이 레이싱 트랙처럼 그린 화면 요소 | `MapGraph` (경로 `MapRoute`) | 바탕과 그리는 방식은 테마가 정함. 기본 테마에서는 바탕을 어두운/밝은 중 사용자가 고름 (바탕: `MapBackground`). 상세 그래프는 별개 화면 |
 | 비 효과 | 맵 그래프에서 와이퍼를 켠 구간에 빗줄이 천천히 반복해 떨어지는 표시. 신호가 없으면(null) 없음 | `RainDrop` (`MapRoute.rainDrops`) | 출처: #14. 정차 화면에서만 반복, 화면을 벗어나면 멈춤. 반복 연출의 하나. 고급 테마에서는 와이퍼 구간 표시가 그 테마의 모양(빗방울, 유성, 눈보라 등)으로 바뀌고, 움직이는 표시는 같은 방식으로 반복함 |
@@ -26,6 +26,7 @@
 | 그림 데이터 | 하루 그림을 그리기 위한 도형 목록. 그림 자체가 아니라 그리는 재료 | `DayArtData` (도형 `DayArtShape`) | |
 | 무늬 | 하루 그림에서 깜빡이·와이퍼·전조등을 켠 구간에 얹는 표시. 신호가 없으면(null) 무늬 없음 | `DayArtPattern` | 출처: 스펙 #9 '그림 로직' |
 | 그날 화면 | 잔디 칸을 누르면 열리는 그 날짜의 화면. 하루 그림과 맵 그래프를 함께 보여 줌 | `DayScreen` | 출처: 스펙 #9 '화면'(칸을 누르면 그날 화면), 사용자 스토리 29. 넓은 화면에서는 맵 그래프가 화면 바탕 전체, 왼쪽 유리판에 날짜·주행 요약·하루 그림·범례(#117) |
+| 수집 동의 | 주행 기록을 모으기 전에 사용자가 수집 안내(항목·목적·보관 기간·거부할 권리)를 읽고 동의 버튼으로 답한 것. 위치는 따로 고르는 선택 항목 | `RecordingConsent` (저장 `RecordingConsentStore`, 안내 화면 `ConsentScreen`, 설정 `PrivacyChoice`) | 출처: #127, Pleos 심사 '사용자 개인정보 및 보안'. 동의 전에는 기록 서비스도 시작하지 않음. 철회하면 기록을 멈추고 기록 저장소를 모두 지움 |
 | 기록 서비스 | 화면 없이도 주행 세션을 기록하도록 앱을 살려 두는 포그라운드 서비스. 앱을 처음 열 때, 부팅·앱 업데이트 뒤에 시작하고 최근 앱에서 지워도 유지됨. 상시 알림이 보임 | `RecordingService` (부팅 수신 `RecordingBootReceiver`) | 출처: #125. `:app` 안에 있고 주행 세션 기록기를 시작하기만 함. 백그라운드 위치 권한이 없으면 부팅 뒤에는 위치 없이 기록. '기록 중' 화면과 다른 말 |
 | 기록 중 | 주행 중(주행 세션이 진행 중이거나 기어가 P가 아님)일 때 다른 화면 대신 보이는 정지 화면. 움직임 없음, 진행 중인 주행 세션이 있으면 수동 끝 버튼만 있음 | `RecordingScreen` | 출처: 스펙 #9 '화면'·'움직임', 사용자 스토리 10·43. 맵 그래프·하루 그림·잔디는 이때 열리지 않음 |
 | 잔디 | 하루 기록을 날짜별 격자 칸으로 보여주는 기록 화면 | `GrassScreen` | 칸 하나 = 하루 기록, 칸에는 하루 그림 축소본. 기록 없는 날은 빈 칸. 본인 기록만 보여 줌 |
