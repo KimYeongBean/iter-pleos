@@ -60,7 +60,8 @@ class RecordingService : Service() {
                 Log.i(TAG, "foreground as type $type")
                 return true
             }
-            Log.w(TAG, "foreground as type $type refused", started.exceptionOrNull())
+            // Expected for location without background location after a boot: one line, no trace.
+            Log.w(TAG, "foreground as type $type refused: ${started.exceptionOrNull()?.javaClass?.simpleName}")
         }
         return false
     }
