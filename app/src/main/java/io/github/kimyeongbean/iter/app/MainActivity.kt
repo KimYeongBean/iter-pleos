@@ -1,8 +1,10 @@
 package io.github.kimyeongbean.iter.app
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -21,25 +23,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 
-/** Runtime permissions the drive session recorder needs: vehicle speed and location (#18). */
-private val RECORDING_PERMISSIONS = arrayOf(
-    "android.car.permission.CAR_SPEED",
-    Manifest.permission.ACCESS_FINE_LOCATION,
-    Manifest.permission.ACCESS_COARSE_LOCATION,
-)
+/**
+ * Runtime permissions the drive session recorder needs: vehicle speed and location (#18), and
+ * from Android 13 the recording service's notification (#125).
+ */
+private val RECORDING_PERMISSIONS = buildList {
+    add("android.car.permission.CAR_SPEED")
+    add(Manifest.permission.ACCESS_FINE_LOCATION)
+    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+}
+
+private const val PREFS = "recording"
+private const val PREF_BACKGROUND_LOCATION_ASKED = "background_location_asked"
 
 class MainActivity : ComponentActivity() {
     /** Records whatever was granted: a denied signal is recorded as missing. */
     private val askRecordingPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            (application as IterApplication).startRecording()
+            RecordingService.start(this)
+            offerBackgroundLocation()
         }
+
+    private val askBackgroundLocation = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as IterApplication
         val missing = RECORDING_PERMISSIONS.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isEmpty()) app.startRecording() else askRecordingPermissions.launch(missing.toTypedArray())
+        if (missing.isEmpty()) {
+            RecordingService.start(this)
+            offerBackgroundLocation()
+        } else {
+            askRecordingPermissions.launch(missing.toTypedArray())
+        }
         setContent {
             // Held above the app theme: an advanced theme sets the app colours and the backdrop.
             var settings by remember { mutableStateOf(app.speedColorSettingsStore.load()) }
@@ -81,6 +98,27 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Once, after location was allowed while in use: explains why recording without the screen
+     * wants location always, then asks. Declining keeps recording, without location (#125).
+     */
+    private fun offerBackgroundLocation() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val background = Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        if (checkSelfPermission(background) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(PREF_BACKGROUND_LOCATION_ASKED, false)) return
+        prefs.edit().putBoolean(PREF_BACKGROUND_LOCATION_ASKED, true).apply()
+        AlertDialog
+            .Builder(this)
+            .setTitle(R.string.background_location_title)
+            .setMessage(R.string.background_location_message)
+            .setPositiveButton(R.string.background_location_allow) { _, _ -> askBackgroundLocation.launch(background) }
+            .setNegativeButton(R.string.background_location_later, null)
+            .show()
     }
 
     /** System animator duration scale; 0 means the user turned animations off. */

@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Iter</string>
+    <string name="recording_channel">주행 기록</string>
+    <string name="recording_notification_title">주행을 기록하고 있어요</string>
+    <string name="recording_notification_text">앱을 열지 않아도 오늘의 그림이 쌓여요</string>
+    <string name="background_location_title">앱을 닫아도 경로를 기록할까요?</string>
+    <string name="background_location_message">시동을 걸면 앱을 열지 않아도 주행을 기록해요. 위치를 \'항상 허용\'하면 이때도 지도에 경로가 그려지고, 허용하지 않으면 경로 없이 하루 그림만 쌓여요. 위치는 기기 안에만 저장돼요.</string>
+    <string name="background_location_allow">설정하기</string>
+    <string name="background_location_later">나중에</string>
     <string name="debug_menu_title">디버그 메뉴</string>
     <string name="debug_menu_open">디버그 메뉴</string>
     <string name="back">뒤로</string>
