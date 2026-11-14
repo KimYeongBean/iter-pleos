@@ -1,5 +1,6 @@
 package io.github.kimyeongbean.iter.app
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,7 +45,8 @@ private val NOTICE_ITEMS =
 /**
  * The collection notice (GLOSSARY: 수집 동의, #127) on glass. When [onAnswer] is given it asks:
  * nothing counts as agreeing but the agree button, and location is an extra choice that starts
- * off. Without [onAnswer] it only shows the notice again, with [onClose].
+ * off. Without [onAnswer] it only shows the notice again, with [onClose]. [onBack] is system back
+ * (null on the first launch, where back leaves the app).
  */
 @Composable
 internal fun ConsentScreen(
@@ -52,7 +54,10 @@ internal fun ConsentScreen(
     art: ThemeArt?,
     onAnswer: ((RecordingConsent) -> Unit)?,
     onClose: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
 ) {
+    // Back returns to the screen the notice opened over; it never counts as an answer.
+    BackHandler(enabled = onBack != null) { onBack?.invoke() }
     var location by rememberSaveable { mutableStateOf(false) }
     GlassScene(accent = accent, art = art) {
         Box(Modifier.fillMaxSize().padding(SCREEN_MARGIN_WIDE), contentAlignment = Alignment.Center) {

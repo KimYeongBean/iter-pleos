@@ -61,7 +61,17 @@ internal fun IterApp(
     privacy: PrivacyActions,
     onStartRecording: () -> Unit,
 ) {
-    var screen by rememberSaveable { mutableStateOf(Screen.GRASS) }
+    // The screens opened so far, the shown one last: back always returns to the one before it.
+    var backStack by rememberSaveable { mutableStateOf(listOf(Screen.GRASS)) }
+    val screen = backStack.last()
+
+    fun open(next: Screen) {
+        backStack = backStack + next
+    }
+
+    fun back() {
+        if (backStack.size > 1) backStack = backStack.dropLast(1)
+    }
     var openDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
     var grassIntroPlayed by rememberSaveable { mutableStateOf(false) }
     // Dates whose day art already drew in; it draws in once, on the first open.
@@ -101,7 +111,7 @@ internal fun IterApp(
         return
     }
 
-    BackHandler(enabled = screen != Screen.GRASS) { screen = Screen.GRASS }
+    BackHandler(enabled = backStack.size > 1) { back() }
 
     SharedTransitionLayout {
         AnimatedContent(
@@ -140,11 +150,11 @@ internal fun IterApp(
                             // Leaving mid-intro would otherwise replay the intro on the way back.
                             grassIntroPlayed = true
                             openDate = it
-                            screen = Screen.DAY
+                            open(Screen.DAY)
                         },
-                        onOpenSettings = { screen = Screen.SETTINGS },
+                        onOpenSettings = { open(Screen.SETTINGS) },
                         animateBackdrop = !animationsOff,
-                        onOpenDebugMenu = if (showDebugMenu) ({ screen = Screen.DEBUG_MENU }) else null,
+                        onOpenDebugMenu = if (showDebugMenu) ({ open(Screen.DEBUG_MENU) }) else null,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@AnimatedContent,
                     )
@@ -172,7 +182,7 @@ internal fun IterApp(
                         playDrawIn = date !in drawnInDates && !animationsOff,
                         animateLoop = !animationsOff,
                         onDrawInStarted = { drawnInDates = drawnInDates + date },
-                        onBack = { screen = Screen.GRASS },
+                        onBack = { back() },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@AnimatedContent,
                     )
@@ -182,7 +192,7 @@ internal fun IterApp(
                     SettingsScreen(
                         settings = settings,
                         onChange = onSettingsChange,
-                        onBack = { screen = Screen.GRASS },
+                        onBack = { back() },
                         animateBackdrop = !animationsOff,
                         privacy = privacy,
                     )
@@ -192,7 +202,7 @@ internal fun IterApp(
                         recordStore = recordStore,
                         onStartRecording = onStartRecording,
                         scope = appScope,
-                        onBack = { screen = Screen.GRASS },
+                        onBack = { back() },
                     )
             }
         }
