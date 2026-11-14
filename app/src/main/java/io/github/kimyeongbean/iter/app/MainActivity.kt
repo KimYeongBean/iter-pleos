@@ -14,11 +14,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
         if (consent.agreed) startRecording()
         if (consent.answer == RecordingConsent.Answer.NOT_ASKED) notice = Notice.ASK
         setContent {
+            val appState = rememberSaveableStateHolder()
             // Held above the app theme: an advanced theme sets the app colours and the backdrop.
             var settings by remember { mutableStateOf(app.speedColorSettingsStore.load()) }
             val dark = settings.screenMode.isDark(isSystemInDarkTheme())
@@ -91,48 +94,79 @@ class MainActivity : ComponentActivity() {
                                 art = art,
                                 onAnswer = if (notice == Notice.ASK) ::answer else null,
                                 onClose = { notice = Notice.NONE },
+                                onBack = noticeBack(),
                             )
                             return@Surface
                         }
-                        val driving by app.driveSessionRecorder.driving.collectAsState()
-                        val animationsOff = remember { animatorDurationScale() == 0f }
-                        // Asked once per activity; the answer is for the whole process.
-                        val splashPlayed = remember { app.splashPlayed.also { app.splashPlayed = true } }
-                        SplashThenApp(settings.theme, settings.accentArgb(dark), dark, skip = splashPlayed || driving || animationsOff) {
-                            IterApp(
-                                recordStore = app.recordStore,
-                                recorder = app.driveSessionRecorder,
-                                settings = settings,
-                                onSettingsChange = {
-                                    settings = it
-                                    app.speedColorSettingsStore.save(it)
-                                },
-                                appScope = app.appScope,
-                                showDebugMenu = BuildConfig.DEBUG,
-                                animationsOff = animationsOff,
-                                privacy =
-                                PrivacyActions(
-                                    consent = consent,
-                                    onShowNotice = { notice = Notice.READ },
-                                    onAgree = { notice = Notice.ASK },
-                                    onWithdraw = {
-                                        app.appScope.launch {
-                                            app.withdrawConsent()
-                                            consent = app.consentStore.load()
-                                        }
-                                    },
-                                ),
-                                onStartRecording = {
-                                    app.requestManualStart()
-                                    // Not agreed yet: the notice comes first, and agreeing sends the start.
-                                    if (!consent.agreed) notice = Notice.ASK
-                                },
-                            )
-                        }
+                        // Keeps the app's screens (and where back leads) while the notice covers them.
+                        appState.SaveableStateProvider("app") { App(settings, dark) { settings = it } }
                     }
                 }
             }
         }
+    }
+
+    @Composable
+    private fun App(
+        settings: SpeedColorSettings,
+        dark: Boolean,
+        onSettingsChange: (SpeedColorSettings) -> Unit,
+    ) {
+        val app = app
+        val driving by app.driveSessionRecorder.driving.collectAsState()
+        val animationsOff = remember { animatorDurationScale() == 0f }
+        // Asked once per activity; the answer is for the whole process.
+        val splashPlayed = remember { app.splashPlayed.also { app.splashPlayed = true } }
+        SplashThenApp(settings.theme, settings.accentArgb(dark), dark, skip = splashPlayed || driving || animationsOff) {
+            IterApp(
+                recordStore = app.recordStore,
+                recorder = app.driveSessionRecorder,
+                settings = settings,
+                onSettingsChange = {
+                    onSettingsChange(it)
+                    app.speedColorSettingsStore.save(it)
+                },
+                appScope = app.appScope,
+                showDebugMenu = BuildConfig.DEBUG,
+                animationsOff = animationsOff,
+                privacy =
+                PrivacyActions(
+                    consent = consent,
+                    onShowNotice = { notice = Notice.READ },
+                    onAgree = { notice = Notice.ASK },
+                    onWithdraw = {
+                        app.appScope.launch {
+                            app.withdrawConsent()
+                            consent = app.consentStore.load()
+                        }
+                    },
+                ),
+                onStartRecording = {
+                    app.requestManualStart()
+                    // Not agreed yet: the notice comes first, and agreeing sends the start.
+                    if (!consent.agreed) notice = Notice.ASK
+                },
+            )
+        }
+    }
+
+    /**
+     * Back on the notice returns to the screen it opened over, without answering. On the first
+     * launch nothing is under it, so back leaves the app as usual (null).
+     */
+    private fun noticeBack(): (() -> Unit)? = when {
+        notice == Notice.READ -> {
+            { notice = Notice.NONE }
+        }
+
+        consent.answer != RecordingConsent.Answer.NOT_ASKED -> {
+            {
+                app.cancelManualStart()
+                notice = Notice.NONE
+            }
+        }
+
+        else -> null
     }
 
     /** Keeps the user's answer to the notice and, if they agreed, starts recording. */
