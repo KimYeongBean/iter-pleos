@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -54,7 +55,7 @@ internal fun ConsentScreen(
 ) {
     var location by rememberSaveable { mutableStateOf(false) }
     GlassScene(accent = accent, art = art) {
-        Box(Modifier.padding(SCREEN_MARGIN_WIDE), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().padding(SCREEN_MARGIN_WIDE), contentAlignment = Alignment.Center) {
             Column(
                 Modifier
                     .widthIn(max = PLATE_MAX_WIDTH)
