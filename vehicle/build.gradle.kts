@@ -39,6 +39,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    // Encrypted record database (ADR 0003, #126).
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
