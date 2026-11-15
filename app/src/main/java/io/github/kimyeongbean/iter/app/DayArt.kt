@@ -86,11 +86,16 @@ internal fun DayArtDisc(
     animateLoop: Boolean = false,
     drawInProgress: () -> Float = { 1f },
 ) {
-    val panelIsLight = Color(panel.argb).luminance() > 0.5f
-    val clashes = behindPlates && panelIsLight == isSystemInDarkTheme()
+    val clashes = behindPlates && !panelShowsBehindPlates(panel.argb, isSystemInDarkTheme())
     val ground = if (panel.art == null && !clashes) Modifier.clip(CircleShape).background(Color(panel.argb)) else Modifier
     Box(modifier.then(ground)) { DayArt(data, panel, Modifier.fillMaxSize(), animateLoop, drawInProgress) }
 }
+
+/** Whether a panel colour may lie under the glass plates: only when its brightness matches the screen mode. */
+internal fun panelShowsBehindPlates(
+    panelArgb: Int,
+    dark: Boolean,
+): Boolean = (Color(panelArgb).luminance() > 0.5f) != dark
 
 private fun DrawScope.drawShape(
     shape: DayArtShape,
