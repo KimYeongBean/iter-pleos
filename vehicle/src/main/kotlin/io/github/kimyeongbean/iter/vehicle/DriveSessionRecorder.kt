@@ -70,10 +70,14 @@ public class DriveSessionRecorder(
     /**
      * Records from the real vehicle signals (Pleos Vehicle SDK, vehicle speed, location) until the
      * caller is cancelled; see [record]. Signals without a granted permission are recorded as missing,
-     * so ask for [CAR_SPEED_PERMISSION] and fine location before calling.
+     * so ask for [CAR_SPEED_PERMISSION] and fine location before calling. Location is recorded only
+     * [withLocation] (the user agreed to it, #127); otherwise it is missing even with the permission.
      */
-    public suspend fun recordFromVehicle(context: Context) {
-        record(pleosVehicleSignals(context.applicationContext))
+    public suspend fun recordFromVehicle(
+        context: Context,
+        withLocation: Boolean,
+    ) {
+        record(pleosVehicleSignals(context.applicationContext, withLocation))
     }
 
     /**
